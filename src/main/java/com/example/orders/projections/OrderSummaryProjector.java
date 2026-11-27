@@ -1,5 +1,7 @@
 package com.example.orders.projections;
 
+import static com.example.orders.projections.OrderSummaryStatements.INSERT_IF_ABSENT_SQL;
+
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -26,12 +28,6 @@ public class OrderSummaryProjector {
 
 	static final String CONSUMER = "order-summary";
 
-	private static final String INSERT_SQL = """
-			INSERT INTO order_summary_view
-			  (order_id, customer_id, status, total_amount, currency, line_count, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-			""";
-
 	private static final String UPDATE_STATUS_SQL = """
 			UPDATE order_summary_view SET status = ?, updated_at = ? WHERE order_id = ?
 			""";
@@ -50,9 +46,9 @@ public class OrderSummaryProjector {
 		if (!processedEventStore.tryMarkProcessed(event.eventId(), CONSUMER)) {
 			return;
 		}
-		jdbcTemplate.update(INSERT_SQL, event.orderId().value(), event.customerId().value(),
+		jdbcTemplate.update(INSERT_IF_ABSENT_SQL, event.orderId().value(), event.customerId().value(),
 				OrderStatus.PLACED.name(), event.total().amount(), event.currency().code(), event.lines().size(),
-				timestamp(event.occurredAt()));
+				timestamp(event.occurredAt()), event.orderId().value());
 	}
 
 	@EventListener

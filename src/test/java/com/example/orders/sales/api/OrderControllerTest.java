@@ -67,7 +67,8 @@ class OrderControllerTest {
 	private JdbcClient jdbcClient;
 
 	/**
-	 * 清掉上一个用例遗留的未发布事件，避免共享 H2 中的毒事件阻塞本用例的 relay。
+	 * 清掉上一个用例遗留的未发布事件，避免共享 H2 中履约侧无法补偿的事件阻塞本用例的 relay。
+	 * 与投影幂等无关：直接确认的订单会让履约取消步骤抛错，事件永久停在下一次 relay 的队首。
 	 */
 	@BeforeEach
 	void clearPendingOutbox() {

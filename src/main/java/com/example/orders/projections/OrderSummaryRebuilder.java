@@ -1,5 +1,7 @@
 package com.example.orders.projections;
 
+import static com.example.orders.projections.OrderSummaryStatements.INSERT_IF_ABSENT_SQL;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -23,12 +25,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Component
 public class OrderSummaryRebuilder {
-
-	private static final String INSERT_SQL = """
-			INSERT INTO order_summary_view
-			  (order_id, customer_id, status, total_amount, currency, line_count, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-			""";
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -69,11 +65,12 @@ public class OrderSummaryRebuilder {
 		OffsetDateTime updatedAt = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
 		List<OrderSummaryView> rows = orderApplicationService.listAll()
 			.stream()
+			.filter(order -> order.placedAt() != null)
 			.map(order -> OrderSummaryView.of(order, now))
 			.toList();
 		for (OrderSummaryView row : rows) {
-			jdbcTemplate.update(INSERT_SQL, row.orderId(), row.customerId(), row.status(), row.totalAmount(),
-					row.currency(), row.lineCount(), updatedAt);
+			jdbcTemplate.update(INSERT_IF_ABSENT_SQL, row.orderId(), row.customerId(), row.status(),
+					row.totalAmount(), row.currency(), row.lineCount(), updatedAt, row.orderId());
 		}
 	}
 

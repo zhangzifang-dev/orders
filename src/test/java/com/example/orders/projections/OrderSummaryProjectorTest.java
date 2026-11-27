@@ -142,7 +142,39 @@ class OrderSummaryProjectorTest {
 		assertThat(summaries.getFirst().orderId()).isEqualTo(orderId);
 		assertThat(summaries.getFirst().status()).isEqualTo(OrderStatus.PLACED);
 		assertThat(summaries.getFirst().lineCount()).isEqualTo(1);
-		assertThat(rowCount()).isEqualTo(orderApi.listAll().size());
+		long placedOrderCount = orderApi.listAll().stream().filter(order -> order.placedAt() != null).count();
+		assertThat(rowCount()).isEqualTo(placedOrderCount);
+	}
+
+	@Test
+	void draftOrderIsNotProjectedByRebuild() {
+		CustomerId customerId = CustomerId.of(UUID.randomUUID());
+		orderApi.create(new CreateOrderCommand(customerId, Currency.CNY,
+				List.of(new CreateOrderLineCommand(newSku(), "机械键盘", Money.of("199.00", Currency.CNY),
+						Quantity.of(1)))));
+
+		jdbcClient.sql("DELETE FROM order_summary_view").update();
+		rebuilder.rebuild();
+
+		assertThat(summaryQuery.byCustomer(customerId)).isEmpty();
+	}
+
+	@Test
+	void pendingPlacedEventAfterRebuildDoesNotStallRelay() {
+		CustomerId rebuiltCustomer = CustomerId.of(UUID.randomUUID());
+		OrderId rebuiltOrder = placeOrder(rebuiltCustomer, 1);
+		rebuilder.rebuild();
+
+		CustomerId laterCustomer = CustomerId.of(UUID.randomUUID());
+		placeOrder(laterCustomer, 1);
+
+		// 重建已插入 rebuiltOrder 的行，但还没有 processed_event 记录；待投递的 OrderPlaced 必须幂等。
+		relay.relayOnce();
+
+		assertThat(summaryQuery.byCustomer(rebuiltCustomer)).hasSize(1);
+		assertThat(rowCount(rebuiltOrder)).isEqualTo(1);
+		// 若重建后的重复 OrderPlaced 触发主键冲突，relay 会中断，后一个订单不会被投影。
+		assertThat(summaryQuery.byCustomer(laterCustomer)).hasSize(1);
 	}
 
 	private OrderId placeOrder(CustomerId customerId, int quantity) {
