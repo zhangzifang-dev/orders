@@ -42,6 +42,9 @@ public class ExternalPaymentGatewayAdapter implements PaymentGateway {
 	}
 
 	private static CaptureResult translate(LegacyResponse response) {
+		if (response == null || response.statusCode() == null) {
+			return new Declined("未知状态码: <null>");
+		}
 		return switch (response.statusCode()) {
 			case STATUS_SUCCESS -> new Captured(response.reference());
 			case STATUS_INSUFFICIENT_FUNDS -> new Declined("余额不足");

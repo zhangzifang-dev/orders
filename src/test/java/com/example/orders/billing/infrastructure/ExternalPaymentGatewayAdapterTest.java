@@ -65,6 +65,30 @@ class ExternalPaymentGatewayAdapterTest {
 	}
 
 	@Test
+	void mapsNullResponseToDeclined() {
+		RecordingLegacyClient legacy = new RecordingLegacyClient(null);
+		ExternalPaymentGatewayAdapter adapter = new ExternalPaymentGatewayAdapter(legacy);
+
+		CaptureResult result = adapter.capture(request("idem-6"));
+
+		assertThat(result).isNotInstanceOf(Captured.class);
+		assertThat(result).isInstanceOf(Declined.class);
+		assertThat(((Declined) result).reason()).contains("null");
+	}
+
+	@Test
+	void mapsNullStatusCodeToDeclined() {
+		RecordingLegacyClient legacy = new RecordingLegacyClient(new LegacyResponse(null, "legacy-ref-7", "missing"));
+		ExternalPaymentGatewayAdapter adapter = new ExternalPaymentGatewayAdapter(legacy);
+
+		CaptureResult result = adapter.capture(request("idem-7"));
+
+		assertThat(result).isNotInstanceOf(Captured.class);
+		assertThat(result).isInstanceOf(Declined.class);
+		assertThat(((Declined) result).reason()).contains("null");
+	}
+
+	@Test
 	void convertsYuanToCentsAndPassesIdempotencyKeyAsReference() {
 		RecordingLegacyClient legacy = new RecordingLegacyClient(new LegacyResponse("00", "legacy-ref-5", "ok"));
 		ExternalPaymentGatewayAdapter adapter = new ExternalPaymentGatewayAdapter(legacy);
