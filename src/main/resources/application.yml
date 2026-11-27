@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: orders
+  datasource:
+    url: jdbc:h2:file:./data/orders;AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+  h2:
+    console:
+      enabled: true
