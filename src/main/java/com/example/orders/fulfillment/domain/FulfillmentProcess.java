@@ -55,6 +55,31 @@ public class FulfillmentProcess extends AggregateRoot {
 	}
 
 	/**
+	 * 从持久化状态重建流程，仅供仓储使用。
+	 * @param processId 流程 ID
+	 * @param orderId 订单 ID
+	 * @param status 当前状态
+	 * @param failureReason 失败或补偿原因，可为空
+	 * @param updatedAt 最后更新时间
+	 * @param version 乐观锁版本
+	 * @return 重建后的聚合
+	 */
+	public static FulfillmentProcess rehydrate(ProcessId processId, OrderId orderId, FulfillmentStatus status,
+			String failureReason, Instant updatedAt, long version) {
+		if (status == null) {
+			throw new DomainException("流程状态不能为空");
+		}
+		if (updatedAt == null) {
+			throw new DomainException("更新时间不能为空");
+		}
+		FulfillmentProcess process = new FulfillmentProcess(processId, orderId, updatedAt);
+		process.status = status;
+		process.failureReason = failureReason;
+		process.assignVersion(version);
+		return process;
+	}
+
+	/**
 	 * {@code STARTED -> STOCK_RESERVED}。
 	 * @param occurredAt 迁移时间
 	 */

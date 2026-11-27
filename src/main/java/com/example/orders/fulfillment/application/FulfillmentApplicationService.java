@@ -1,0 +1,64 @@
+package com.example.orders.fulfillment.application;
+
+import java.util.List;
+import java.util.Optional;
+
+import com.example.orders.fulfillment.application.port.BillingOutcome;
+import com.example.orders.fulfillment.application.port.ChargeFailed;
+import com.example.orders.fulfillment.application.port.ReservationResult;
+import com.example.orders.fulfillment.application.port.StockShortage;
+import com.example.orders.fulfillment.domain.FulfillmentProcess;
+import com.example.orders.inventory.application.ReserveLine;
+import com.example.orders.sharedkernel.outbox.OrderPlacedIntegrationEvent;
+
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
+
+/**
+ * 履约 saga 的编排者：监听 {@code OrderPlaced}，按步骤调用 {@link FulfillmentSteps}。
+ *
+ * <p>本类<strong>不声明事务</strong>：outbox relay 已在自己的事务中分发事件，而每个 saga 步骤
+ * 由 {@link FulfillmentSteps} 的 {@code REQUIRES_NEW} 事务独立提交。
+ */
+@Service
+public class FulfillmentApplicationService {
+
+	private final FulfillmentSteps steps;
+
+	public FulfillmentApplicationService(FulfillmentSteps steps) {
+		this.steps = steps;
+	}
+
+	/**
+	 * 订单提交后的成功路径：启动流程 → 预占库存 → 扣款 → 确认订单 → 完成。
+	 * @param event 订单已提交集成事件
+	 */
+	@EventListener
+	public void onOrderPlaced(OrderPlacedIntegrationEvent event) {
+		Optional<FulfillmentProcess> claimed = steps.startOrClaim(event.orderId(), event.eventId());
+		if (claimed.isEmpty()) {
+			return;
+		}
+		FulfillmentProcess process = claimed.get();
+
+		List<ReserveLine> lines = event.lines()
+			.stream()
+			.map(line -> new ReserveLine(line.sku(), line.quantity()))
+			.toList();
+		ReservationResult reservation = steps.reserve(process, lines);
+		if (reservation instanceof StockShortage shortage) {
+			steps.failAndCancel(process, event.orderId(), shortage.reason());
+			return;
+		}
+
+		BillingOutcome billing = steps.pay(process, event.orderId(), event.customerId(), event.payable());
+		if (billing instanceof ChargeFailed failed) {
+			// Task 18 将在此接入补偿：释放库存、取消订单并标记 CANCELLED。
+			steps.failAndCancel(process, event.orderId(), failed.reason());
+			return;
+		}
+
+		steps.confirmAndComplete(process, event.orderId());
+	}
+
+}

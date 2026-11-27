@@ -40,6 +40,11 @@ CREATE TABLE IF NOT EXISTS billing_payment (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS fulfillment_process (
+  id UUID PRIMARY KEY, order_id UUID NOT NULL UNIQUE, status VARCHAR(30) NOT NULL,
+  failure_reason VARCHAR(500), updated_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS processed_event (
   event_id UUID NOT NULL, consumer VARCHAR(120) NOT NULL,
   processed_at TIMESTAMP WITH TIME ZONE NOT NULL,

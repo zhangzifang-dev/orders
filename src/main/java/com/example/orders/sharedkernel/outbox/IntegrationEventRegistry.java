@@ -22,6 +22,8 @@ public class IntegrationEventRegistry {
 		register(StockReservationFailedIntegrationEvent.EVENT_TYPE, StockReservationFailedIntegrationEvent.class);
 		register(PaymentCapturedIntegrationEvent.EVENT_TYPE, PaymentCapturedIntegrationEvent.class);
 		register(PaymentFailedIntegrationEvent.EVENT_TYPE, PaymentFailedIntegrationEvent.class);
+		register(FulfillmentCompletedIntegrationEvent.EVENT_TYPE, FulfillmentCompletedIntegrationEvent.class);
+		register(FulfillmentFailedIntegrationEvent.EVENT_TYPE, FulfillmentFailedIntegrationEvent.class);
 	}
 
 	public void register(String eventType, Class<? extends IntegrationEvent> eventClass) {
