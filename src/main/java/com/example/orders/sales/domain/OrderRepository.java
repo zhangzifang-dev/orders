@@ -21,4 +21,10 @@ public interface OrderRepository {
 
 	List<Order> findByCustomerId(CustomerId customerId);
 
+	/**
+	 * 返回全部订单，供读模型重建等只读场景使用。
+	 * @return 全部订单
+	 */
+	List<Order> findAll();
+
 }

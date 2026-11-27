@@ -15,6 +15,8 @@ public class IntegrationEventRegistry {
 
 	public IntegrationEventRegistry() {
 		register(OrderPlacedIntegrationEvent.EVENT_TYPE, OrderPlacedIntegrationEvent.class);
+		register(OrderConfirmedIntegrationEvent.EVENT_TYPE, OrderConfirmedIntegrationEvent.class);
+		register(OrderCancelledIntegrationEvent.EVENT_TYPE, OrderCancelledIntegrationEvent.class);
 	}
 
 	public void register(String eventType, Class<? extends IntegrationEvent> eventClass) {

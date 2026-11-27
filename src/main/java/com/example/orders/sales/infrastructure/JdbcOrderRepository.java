@@ -1,5 +1,6 @@
 package com.example.orders.sales.infrastructure;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +50,13 @@ public class JdbcOrderRepository implements OrderRepository {
 	@Override
 	public List<Order> findByCustomerId(CustomerId customerId) {
 		return dao.findByCustomerId(customerId.value()).stream().map(this::toDomain).toList();
+	}
+
+	@Override
+	public List<Order> findAll() {
+		List<Order> orders = new ArrayList<>();
+		dao.findAll().forEach(record -> orders.add(toDomain(record)));
+		return List.copyOf(orders);
 	}
 
 	private OrderRecord toRecord(Order order, Long version) {
