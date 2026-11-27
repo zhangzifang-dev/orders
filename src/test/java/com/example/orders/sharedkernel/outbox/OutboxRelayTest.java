@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.example.orders.bootstrap.ClockConfig;
 import com.example.orders.sharedkernel.Currency;
 import com.example.orders.sharedkernel.CustomerId;
 import com.example.orders.sharedkernel.Money;
@@ -31,7 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({ JdbcOutboxRepository.class, OutboxAppender.class, OutboxRelay.class, OutboxPublisher.class,
-		IntegrationEventRegistry.class, OutboxRelayTest.TestDispatcher.class, OutboxRelayTest.JacksonConfig.class })
+		IntegrationEventRegistry.class, ClockConfig.class, OutboxRelayTest.TestDispatcher.class,
+		OutboxRelayTest.JacksonConfig.class })
 class OutboxRelayTest {
 
 	@Autowired

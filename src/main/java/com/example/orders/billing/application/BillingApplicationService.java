@@ -3,7 +3,6 @@ package com.example.orders.billing.application;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 import com.example.orders.billing.domain.CaptureRequest;
 import com.example.orders.billing.domain.CaptureResult;
@@ -11,16 +10,24 @@ import com.example.orders.billing.domain.Captured;
 import com.example.orders.billing.domain.Declined;
 import com.example.orders.billing.domain.Invoice;
 import com.example.orders.billing.domain.InvoiceId;
+import com.example.orders.billing.domain.InvoiceIssued;
 import com.example.orders.billing.domain.InvoiceRepository;
+import com.example.orders.billing.domain.InvoiceVoided;
 import com.example.orders.billing.domain.Payment;
+import com.example.orders.billing.domain.PaymentCaptured;
+import com.example.orders.billing.domain.PaymentFailed;
 import com.example.orders.billing.domain.PaymentGateway;
 import com.example.orders.billing.domain.PaymentId;
 import com.example.orders.billing.domain.PaymentRepository;
 import com.example.orders.billing.domain.TimedOut;
 import com.example.orders.sharedkernel.CustomerId;
+import com.example.orders.sharedkernel.DomainEvent;
 import com.example.orders.sharedkernel.DomainException;
 import com.example.orders.sharedkernel.Money;
 import com.example.orders.sharedkernel.OrderId;
+import com.example.orders.sharedkernel.outbox.InvoiceIssuedIntegrationEvent;
+import com.example.orders.sharedkernel.outbox.IntegrationEvent;
+import com.example.orders.sharedkernel.outbox.InvoiceVoidedIntegrationEvent;
 import com.example.orders.sharedkernel.outbox.OutboxAppender;
 import com.example.orders.sharedkernel.outbox.PaymentCapturedIntegrationEvent;
 import com.example.orders.sharedkernel.outbox.PaymentFailedIntegrationEvent;
@@ -98,8 +105,7 @@ public class BillingApplicationService {
 		invoice.markPaid(occurredAt);
 		invoiceRepository.save(invoice);
 		paymentRepository.save(payment);
-		outboxAppender.append(new PaymentCapturedIntegrationEvent(UUID.randomUUID(), occurredAt, invoice.orderId(),
-				invoice.invoiceId().value(), payment.paymentId().value(), invoice.amount()));
+		appendIntegrationEvents(invoice, payment);
 		return new Charged(invoice.invoiceId(), payment.paymentId());
 	}
 
@@ -108,9 +114,35 @@ public class BillingApplicationService {
 		invoice.voidIt(occurredAt);
 		invoiceRepository.save(invoice);
 		paymentRepository.save(payment);
-		outboxAppender.append(new PaymentFailedIntegrationEvent(UUID.randomUUID(), occurredAt, invoice.orderId(),
-				invoice.invoiceId().value(), reason));
+		appendIntegrationEvents(invoice, payment);
 		return new ChargeFailed(reason);
+	}
+
+	/**
+	 * 排空发票与支付聚合的领域事件，并逐条翻译成集成事件写入 outbox。
+	 */
+	private void appendIntegrationEvents(Invoice invoice, Payment payment) {
+		for (DomainEvent event : invoice.pullDomainEvents()) {
+			outboxAppender.append(toIntegrationEvent(event, invoice));
+		}
+		for (DomainEvent event : payment.pullDomainEvents()) {
+			outboxAppender.append(toIntegrationEvent(event, invoice));
+		}
+	}
+
+	private IntegrationEvent toIntegrationEvent(DomainEvent event, Invoice invoice) {
+		return switch (event) {
+			case InvoiceIssued issued -> new InvoiceIssuedIntegrationEvent(issued.eventId(), issued.occurredAt(),
+					issued.invoiceId().value(), issued.orderId(), issued.customerId(), issued.amount());
+			case InvoiceVoided voided -> new InvoiceVoidedIntegrationEvent(voided.eventId(), voided.occurredAt(),
+					voided.invoiceId().value(), invoice.orderId());
+			case PaymentCaptured captured -> new PaymentCapturedIntegrationEvent(captured.eventId(),
+					captured.occurredAt(), invoice.orderId(), captured.invoiceId().value(),
+					captured.paymentId().value(), captured.amount());
+			case PaymentFailed failed -> new PaymentFailedIntegrationEvent(failed.eventId(), failed.occurredAt(),
+					invoice.orderId(), failed.invoiceId().value(), failed.failureReason());
+			default -> throw new IllegalStateException("不支持的计费领域事件: " + event.eventType());
+		};
 	}
 
 	private BillingResult existingOutcome(Invoice invoice) {

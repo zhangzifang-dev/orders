@@ -26,6 +26,8 @@ import com.example.orders.sharedkernel.Money;
 import com.example.orders.sharedkernel.OrderId;
 import com.example.orders.sharedkernel.outbox.IntegrationEvent;
 import com.example.orders.sharedkernel.outbox.IntegrationEventRegistry;
+import com.example.orders.sharedkernel.outbox.InvoiceIssuedIntegrationEvent;
+import com.example.orders.sharedkernel.outbox.InvoiceVoidedIntegrationEvent;
 import com.example.orders.sharedkernel.outbox.JdbcOutboxRepository;
 import com.example.orders.sharedkernel.outbox.OutboxAppender;
 import com.example.orders.sharedkernel.outbox.PaymentCapturedIntegrationEvent;
@@ -111,7 +113,8 @@ class BillingApplicationServiceTest {
 			assertThat(request.idempotencyKey()).isNotBlank();
 		});
 
-		assertThat(outboxEventTypes()).containsExactly(PaymentCapturedIntegrationEvent.EVENT_TYPE);
+		assertThat(outboxEventTypes()).containsExactlyInAnyOrder(InvoiceIssuedIntegrationEvent.EVENT_TYPE,
+				PaymentCapturedIntegrationEvent.EVENT_TYPE);
 		IntegrationEvent event = readOutboxEvent(PaymentCapturedIntegrationEvent.EVENT_TYPE,
 				PaymentCapturedIntegrationEvent.class);
 		assertThat(event).isInstanceOfSatisfying(PaymentCapturedIntegrationEvent.class, captured -> {
@@ -141,7 +144,8 @@ class BillingApplicationServiceTest {
 		assertThat(payment.gatewayRef()).isNull();
 
 		assertThat(gateway.capturedRequests()).hasSize(1);
-		assertThat(outboxEventTypes()).containsExactly(PaymentFailedIntegrationEvent.EVENT_TYPE);
+		assertThat(outboxEventTypes()).containsExactlyInAnyOrder(InvoiceIssuedIntegrationEvent.EVENT_TYPE,
+				InvoiceVoidedIntegrationEvent.EVENT_TYPE, PaymentFailedIntegrationEvent.EVENT_TYPE);
 		IntegrationEvent event = readOutboxEvent(PaymentFailedIntegrationEvent.EVENT_TYPE,
 				PaymentFailedIntegrationEvent.class);
 		assertThat(event).isInstanceOfSatisfying(PaymentFailedIntegrationEvent.class, failed -> {
@@ -167,7 +171,8 @@ class BillingApplicationServiceTest {
 		assertThat(payment.status()).isEqualTo(PaymentStatus.FAILED);
 		assertThat(payment.failureReason()).isEqualTo("TIMEOUT");
 
-		assertThat(outboxEventTypes()).containsExactly(PaymentFailedIntegrationEvent.EVENT_TYPE);
+		assertThat(outboxEventTypes()).containsExactlyInAnyOrder(InvoiceIssuedIntegrationEvent.EVENT_TYPE,
+				InvoiceVoidedIntegrationEvent.EVENT_TYPE, PaymentFailedIntegrationEvent.EVENT_TYPE);
 		IntegrationEvent event = readOutboxEvent(PaymentFailedIntegrationEvent.EVENT_TYPE,
 				PaymentFailedIntegrationEvent.class);
 		assertThat(event).isInstanceOfSatisfying(PaymentFailedIntegrationEvent.class,
@@ -186,7 +191,7 @@ class BillingApplicationServiceTest {
 		assertThat(gateway.capturedRequests()).hasSize(1);
 		assertThat(invoiceCount()).isEqualTo(1);
 		assertThat(paymentCount()).isEqualTo(1);
-		assertThat(outboxCount()).isEqualTo(1);
+		assertThat(outboxCount()).isEqualTo(2);
 	}
 
 	@Test
@@ -227,7 +232,7 @@ class BillingApplicationServiceTest {
 		assertThat(gateway.capturedRequests()).hasSize(1);
 		assertThat(invoiceCount()).isEqualTo(1);
 		assertThat(paymentCount()).isEqualTo(1);
-		assertThat(outboxCount()).isEqualTo(1);
+		assertThat(outboxCount()).isEqualTo(3);
 	}
 
 	private long invoiceCount() {

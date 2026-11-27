@@ -9,8 +9,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * 把领域与应用层异常映射为 RFC 7807 {@code application/problem+json} 响应。
@@ -36,6 +39,22 @@ public class ApiExceptionHandler {
 	@ExceptionHandler({ DomainException.class, IllegalArgumentException.class })
 	public ResponseEntity<ProblemDetail> handleBadRequest(RuntimeException ex) {
 		return problem(HttpStatus.BAD_REQUEST, "请求参数非法", ex.getMessage());
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ProblemDetail> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+		return problem(HttpStatus.BAD_REQUEST, "请求参数非法",
+				"参数 " + ex.getName() + " 格式不正确: " + ex.getValue());
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ProblemDetail> handleUnreadableMessage(HttpMessageNotReadableException ex) {
+		return problem(HttpStatus.BAD_REQUEST, "请求体非法", "无法解析请求体 JSON");
+	}
+
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ProblemDetail> handleMissingParameter(MissingServletRequestParameterException ex) {
+		return problem(HttpStatus.BAD_REQUEST, "请求参数非法", "缺少必需参数: " + ex.getParameterName());
 	}
 
 	private ResponseEntity<ProblemDetail> problem(HttpStatus status, String title, String detail) {

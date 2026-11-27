@@ -11,7 +11,6 @@ import com.example.orders.inventory.domain.StockItemRepository;
 import com.example.orders.sales.application.CreateOrderCommand;
 import com.example.orders.sales.application.CreateOrderLineCommand;
 import com.example.orders.sales.application.OrderApplicationService;
-import com.example.orders.sales.domain.OrderStatus;
 import com.example.orders.sharedkernel.Currency;
 import com.example.orders.sharedkernel.CustomerId;
 import com.example.orders.sharedkernel.Money;
@@ -76,7 +75,7 @@ class OrderSummaryProjectorTest {
 		OrderSummary summary = summaries.getFirst();
 		assertThat(summary.orderId()).isEqualTo(orderId);
 		assertThat(summary.customerId()).isEqualTo(customerId);
-		assertThat(summary.status()).isEqualTo(OrderStatus.PLACED);
+		assertThat(summary.status()).isEqualTo(OrderSummaryStatus.PLACED);
 		assertThat(summary.total()).isEqualTo(Money.of("398.00", Currency.CNY));
 		assertThat(summary.lineCount()).isEqualTo(1);
 		assertThat(summary.updatedAt()).isNotNull();
@@ -96,7 +95,7 @@ class OrderSummaryProjectorTest {
 		List<OrderSummary> summaries = summaryQuery.byCustomer(customerId);
 		assertThat(summaries).hasSize(1);
 		assertThat(summaries.getFirst().orderId()).isEqualTo(orderId);
-		assertThat(summaries.getFirst().status()).isEqualTo(OrderStatus.CONFIRMED);
+		assertThat(summaries.getFirst().status()).isEqualTo(OrderSummaryStatus.CONFIRMED);
 		assertThat(rowCount(orderId)).isEqualTo(1);
 	}
 
@@ -111,7 +110,7 @@ class OrderSummaryProjectorTest {
 
 		List<OrderSummary> summaries = summaryQuery.byCustomer(customerId);
 		assertThat(summaries).hasSize(1);
-		assertThat(summaries.getFirst().status()).isEqualTo(OrderStatus.CANCELLED);
+		assertThat(summaries.getFirst().status()).isEqualTo(OrderSummaryStatus.CANCELLED);
 		assertThat(rowCount(orderId)).isEqualTo(1);
 	}
 
@@ -140,7 +139,7 @@ class OrderSummaryProjectorTest {
 		List<OrderSummary> summaries = summaryQuery.byCustomer(customerId);
 		assertThat(summaries).hasSize(1);
 		assertThat(summaries.getFirst().orderId()).isEqualTo(orderId);
-		assertThat(summaries.getFirst().status()).isEqualTo(OrderStatus.PLACED);
+		assertThat(summaries.getFirst().status()).isEqualTo(OrderSummaryStatus.PLACED);
 		assertThat(summaries.getFirst().lineCount()).isEqualTo(1);
 		long placedOrderCount = orderApi.listAll().stream().filter(order -> order.placedAt() != null).count();
 		assertThat(rowCount()).isEqualTo(placedOrderCount);

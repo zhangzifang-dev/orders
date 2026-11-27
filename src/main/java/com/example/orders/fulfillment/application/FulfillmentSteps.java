@@ -207,15 +207,48 @@ public class FulfillmentSteps {
 	}
 
 	/**
-	 * 标记流程失败并取消订单，同时追加失败事件。
+	 * 标记流程失败，独立提交。已处于终态时幂等跳过，供失败编排重试。
+	 * @param processId 流程 ID
+	 * @param reason 失败原因
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	public void failAndCancel(FulfillmentProcess process, OrderId orderId, String reason) {
+	public void markFailed(ProcessId processId, String reason) {
+		FulfillmentProcess process = load(processId);
+		switch (process.status()) {
+			case STARTED, STOCK_RESERVED, PAID -> {
+				process.markFailed(reason, clock.instant());
+				processRepository.save(process);
+			}
+			default -> {
+				// FAILED/CANCELLED/COMPLETED 幂等跳过；COMPENSATING 由补偿路径负责收尾。
+			}
+		}
+	}
+
+	/**
+	 * 写入失败事件，独立提交，并在必要时自愈流程到 {@code FAILED}。
+	 *
+	 * <p>与取消订单分离，确保取消动作抛异常时失败事件仍然落库，流程不会停在非终态。
+	 * @param processId 流程 ID
+	 * @param orderId 订单 ID
+	 * @param reason 主失败原因
+	 * @param secondaryErrors 次要失败原因，可为空
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void recordFailure(ProcessId processId, OrderId orderId, String reason, List<String> secondaryErrors) {
+		FulfillmentProcess process = load(processId);
 		Instant now = clock.instant();
-		process.markFailed(reason, now);
-		processRepository.save(process);
-		salesPort.cancel(orderId, reason);
-		outboxAppender.append(new FulfillmentFailedIntegrationEvent(UUID.randomUUID(), now, orderId, reason));
+		switch (process.status()) {
+			case STARTED, STOCK_RESERVED, PAID -> {
+				process.markFailed(reason, now);
+				processRepository.save(process);
+			}
+			default -> {
+				// 已是终态或正在补偿：事件仍然要写，但不再迁移状态。
+			}
+		}
+		outboxAppender.append(new FulfillmentFailedIntegrationEvent(UUID.randomUUID(), now, orderId,
+				combinedReason(reason, secondaryErrors)));
 	}
 
 }

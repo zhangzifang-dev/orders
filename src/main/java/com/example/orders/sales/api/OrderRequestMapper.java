@@ -34,6 +34,9 @@ public class OrderRequestMapper {
 	 * @return 创建订单命令
 	 */
 	public CreateOrderCommand toCommand(CreateOrderRequest request) {
+		if (request.lines() == null || request.lines().stream().anyMatch(line -> line == null)) {
+			throw new IllegalArgumentException("订单行不能为空");
+		}
 		Currency currency = Currency.of(request.currency());
 		List<CreateOrderLineCommand> lines = request.lines()
 			.stream()

@@ -20,6 +20,8 @@ public class IntegrationEventRegistry {
 		register(StockReservedIntegrationEvent.EVENT_TYPE, StockReservedIntegrationEvent.class);
 		register(StockReleasedIntegrationEvent.EVENT_TYPE, StockReleasedIntegrationEvent.class);
 		register(StockReservationFailedIntegrationEvent.EVENT_TYPE, StockReservationFailedIntegrationEvent.class);
+		register(InvoiceIssuedIntegrationEvent.EVENT_TYPE, InvoiceIssuedIntegrationEvent.class);
+		register(InvoiceVoidedIntegrationEvent.EVENT_TYPE, InvoiceVoidedIntegrationEvent.class);
 		register(PaymentCapturedIntegrationEvent.EVENT_TYPE, PaymentCapturedIntegrationEvent.class);
 		register(PaymentFailedIntegrationEvent.EVENT_TYPE, PaymentFailedIntegrationEvent.class);
 		register(FulfillmentCompletedIntegrationEvent.EVENT_TYPE, FulfillmentCompletedIntegrationEvent.class);

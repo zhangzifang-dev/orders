@@ -23,6 +23,14 @@ public record OrderView(OrderId orderId, CustomerId customerId, OrderStatus stat
 	}
 
 	/**
+	 * 状态名称：让读模型等外部调用方无需引用销售领域类型即可读取状态。
+	 * @return 状态枚举名称
+	 */
+	public String statusName() {
+		return status.name();
+	}
+
+	/**
 	 * 订单行的只读视图。
 	 */
 	public record OrderLineView(LineId lineId, Sku sku, String productName, Money unitPrice, Quantity quantity,

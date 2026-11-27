@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.UUID;
 
+import com.jayway.jsonpath.JsonPath;
 import com.example.orders.inventory.application.InventoryApplicationService;
 import com.example.orders.inventory.domain.StockItem;
 import com.example.orders.inventory.domain.StockItemRepository;
@@ -206,6 +207,73 @@ class OrderControllerTest {
 			.getResponse()
 			.getContentAsString();
 		assertThat(body).contains(first.toString(), second.toString());
+	}
+
+	@Test
+	void placeOrderAdvancesFulfillmentAndConfirmsOrderThroughRelay() throws Exception {
+		Sku sku = Sku.of("SKU-" + UUID.randomUUID());
+		stockItemRepository.save(StockItem.create(sku, "键盘", 0));
+		inventoryService.restock(sku, 5);
+		UUID customerId = UUID.randomUUID();
+
+		String created = mockMvc
+			.perform(post("/api/orders").contentType(JSON).content("""
+					{"customerId":"%s","currency":"CNY","lines":[
+					  {"sku":"%s","productName":"键盘","unitPrice":"199.00","quantity":1}]}
+					""".formatted(customerId, sku.value())))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+		String orderId = JsonPath.read(created, "$.orderId");
+
+		mockMvc.perform(post("/api/orders/{id}/place", orderId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("PLACED"));
+
+		relay.relayOnce();
+
+		mockMvc.perform(get("/api/fulfillment/{orderId}", orderId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("COMPLETED"));
+		mockMvc.perform(get("/api/orders/{id}", orderId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("CONFIRMED"));
+	}
+
+	@Test
+	void nullOrderLineReturns400ProblemJson() throws Exception {
+		mockMvc
+			.perform(post("/api/orders").contentType(JSON).content("""
+					{"customerId":"%s","currency":"CNY","lines":[null]}
+					""".formatted(UUID.randomUUID())))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(400));
+	}
+
+	@Test
+	void malformedUuidReturns400ProblemJson() throws Exception {
+		mockMvc.perform(get("/api/orders/{id}", "not-a-uuid"))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(400));
+	}
+
+	@Test
+	void malformedJsonReturns400ProblemJson() throws Exception {
+		mockMvc.perform(post("/api/orders").contentType(JSON).content("{"))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(400));
+	}
+
+	@Test
+	void missingQueryParameterReturns400ProblemJson() throws Exception {
+		mockMvc.perform(get("/api/orders"))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(400));
 	}
 
 	private void drainRelay() {

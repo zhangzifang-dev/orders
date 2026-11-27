@@ -1,10 +1,8 @@
 package com.example.orders.inventory.domain;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import com.example.orders.sharedkernel.AggregateRoot;
 import com.example.orders.sharedkernel.DomainException;
@@ -86,11 +84,9 @@ public class StockItem extends AggregateRoot {
 	 * {@link InsufficientStockException} 且不改变状态。
 	 * @param orderId 订单 ID
 	 * @param quantity 预占数量，必须大于 0
-	 * @param occurredAt 事件发生时间
 	 */
-	public void reserve(OrderId orderId, int quantity, Instant occurredAt) {
+	public void reserve(OrderId orderId, int quantity) {
 		requireOrderId(orderId);
-		requireOccurredAt(occurredAt);
 		if (quantity <= 0) {
 			throw new DomainException("预占数量必须大于 0: " + quantity);
 		}
@@ -102,24 +98,20 @@ public class StockItem extends AggregateRoot {
 			throw new InsufficientStockException(sku, quantity, available);
 		}
 		reservations.add(new Reservation(orderId, quantity));
-		registerEvent(new StockReserved(UUID.randomUUID(), occurredAt, orderId, sku, quantity));
 	}
 
 	/**
-	 * 释放订单的库存预占：预占不存在时无操作、不产生事件。
+	 * 释放订单的库存预占：预占不存在时无操作。
 	 * @param orderId 订单 ID
-	 * @param occurredAt 事件发生时间
 	 */
-	public void release(OrderId orderId, Instant occurredAt) {
+	public void release(OrderId orderId) {
 		requireOrderId(orderId);
-		requireOccurredAt(occurredAt);
 		Optional<Reservation> existing = findReservation(orderId);
 		if (existing.isEmpty()) {
 			return;
 		}
 		Reservation reservation = existing.get();
 		reservations.remove(reservation);
-		registerEvent(new StockReleased(UUID.randomUUID(), occurredAt, orderId, sku, reservation.quantity()));
 	}
 
 	/**
@@ -159,12 +151,6 @@ public class StockItem extends AggregateRoot {
 	private void requireOrderId(OrderId orderId) {
 		if (orderId == null) {
 			throw new DomainException("订单 ID 不能为空");
-		}
-	}
-
-	private void requireOccurredAt(Instant occurredAt) {
-		if (occurredAt == null) {
-			throw new DomainException("事件时间不能为空");
 		}
 	}
 

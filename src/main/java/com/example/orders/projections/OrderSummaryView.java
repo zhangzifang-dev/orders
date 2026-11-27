@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.example.orders.sales.application.OrderView;
-import com.example.orders.sales.domain.OrderStatus;
 import com.example.orders.sharedkernel.Currency;
 import com.example.orders.sharedkernel.CustomerId;
 import com.example.orders.sharedkernel.Money;
@@ -24,7 +23,7 @@ public record OrderSummaryView(UUID orderId, UUID customerId, String status, Big
 	 * @return 投影行
 	 */
 	public static OrderSummaryView of(OrderView order, Instant updatedAt) {
-		return new OrderSummaryView(order.orderId().value(), order.customerId().value(), order.status().name(),
+		return new OrderSummaryView(order.orderId().value(), order.customerId().value(), order.statusName(),
 				order.total().amount(), order.currency().code(), order.lines().size(), updatedAt);
 	}
 
@@ -33,8 +32,9 @@ public record OrderSummaryView(UUID orderId, UUID customerId, String status, Big
 	 * @return 订单摘要
 	 */
 	public OrderSummary toSummary() {
-		return new OrderSummary(OrderId.of(orderId), CustomerId.of(customerId), OrderStatus.valueOf(status),
-				Money.of(totalAmount, Currency.of(currency)), lineCount, updatedAt);
+		return new OrderSummary(OrderId.of(orderId), CustomerId.of(customerId),
+				OrderSummaryStatus.valueOf(status), Money.of(totalAmount, Currency.of(currency)), lineCount,
+				updatedAt);
 	}
 
 }

@@ -60,7 +60,7 @@ public class FulfillmentApplicationService {
 				.toList();
 			ReservationResult reservation = steps.reserve(process, lines);
 			if (reservation instanceof StockShortage shortage) {
-				steps.failAndCancel(process, event.orderId(), shortage.reason());
+				fail(process.processId(), event.orderId(), shortage.reason());
 				return;
 			}
 
@@ -113,6 +113,28 @@ public class FulfillmentApplicationService {
 	}
 
 	/**
+	 * 失败路径的非事务编排：标记 {@code FAILED}、幂等释放库存、取消订单、写入失败事件。
+	 *
+	 * <p>每一步独立事务且单独捕获异常，因此取消订单失败不会回滚失败状态或失败事件；
+	 * 释放库存对未预占的订单是幂等的，可安全覆盖“库存已提交但流程尚未推进”的窗口。
+	 * @param processId 流程 ID
+	 * @param orderId 订单 ID
+	 * @param reason 主失败原因
+	 */
+	private void fail(ProcessId processId, OrderId orderId, String reason) {
+		List<String> secondaryErrors = new ArrayList<>();
+		runCompensationStep("标记失败", secondaryErrors, () -> steps.markFailed(processId, reason));
+		runCompensationStep("释放库存", secondaryErrors, () -> steps.releaseStock(orderId));
+		runCompensationStep("取消订单", secondaryErrors, () -> steps.cancelOrder(orderId, reason));
+		try {
+			steps.recordFailure(processId, orderId, reason, secondaryErrors);
+		}
+		catch (RuntimeException ex) {
+			log.error("写入失败事件失败: orderId={}", orderId, ex);
+		}
+	}
+
+	/**
 	 * 按数据库中的最新状态路由失败处理：未预占走失败，已预占/已支付/补偿中走补偿，终态忽略。
 	 */
 	private void routeFailure(ProcessId processId, OrderId orderId, String reason) {
@@ -124,7 +146,7 @@ public class FulfillmentApplicationService {
 		FulfillmentProcess current = stored.get();
 		FulfillmentStatus status = current.status();
 		switch (status) {
-			case STARTED -> steps.failAndCancel(current, orderId, reason);
+			case STARTED -> fail(processId, orderId, reason);
 			case STOCK_RESERVED, PAID, COMPENSATING -> compensate(processId, orderId, reason);
 			default -> log.info("履约流程已处于终态，无需失败处理: orderId={}, status={}", orderId, status);
 		}

@@ -2,6 +2,7 @@ package com.example.orders.sharedkernel.outbox;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -36,8 +37,11 @@ public class JdbcOutboxRepository implements OutboxRepository {
 
 	private final JdbcClient jdbcClient;
 
-	public JdbcOutboxRepository(JdbcClient jdbcClient) {
+	private final Clock clock;
+
+	public JdbcOutboxRepository(JdbcClient jdbcClient, Clock clock) {
 		this.jdbcClient = jdbcClient;
+		this.clock = clock;
 	}
 
 	@Override
@@ -61,7 +65,7 @@ public class JdbcOutboxRepository implements OutboxRepository {
 	public void markPublished(UUID id) {
 		jdbcClient.sql(MARK_PUBLISHED_SQL)
 			.param("id", id)
-			.param("publishedAt", toOffsetDateTime(Instant.now()))
+			.param("publishedAt", toOffsetDateTime(clock.instant()))
 			.update();
 	}
 

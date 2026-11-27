@@ -67,7 +67,7 @@ public class InventoryApplicationService {
 		}
 
 		items.forEach((sku, item) -> {
-			item.reserve(orderId, requested.get(sku), occurredAt);
+			item.reserve(orderId, requested.get(sku));
 			stockItemRepository.save(item);
 		});
 		outboxAppender.append(reservedEvent(orderId, occurredAt, requested));
@@ -77,10 +77,14 @@ public class InventoryApplicationService {
 	@Transactional
 	public void release(OrderId orderId) {
 		requireOrderId(orderId);
-		Instant occurredAt = clock.instant();
 		List<StockItem> items = stockItemRepository.findByReservationOrderId(orderId);
+		if (items.isEmpty()) {
+			// 未预占任何库存：补偿重放或“预占未提交”场景下不发布虚假的释放事件。
+			return;
+		}
+		Instant occurredAt = clock.instant();
 		for (StockItem item : items) {
-			item.release(orderId, occurredAt);
+			item.release(orderId);
 			stockItemRepository.save(item);
 		}
 		outboxAppender.append(new StockReleasedIntegrationEvent(UUID.randomUUID(), occurredAt, orderId));

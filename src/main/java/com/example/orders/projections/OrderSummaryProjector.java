@@ -7,7 +7,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 
-import com.example.orders.sales.domain.OrderStatus;
 import com.example.orders.sharedkernel.outbox.OrderCancelledIntegrationEvent;
 import com.example.orders.sharedkernel.outbox.OrderConfirmedIntegrationEvent;
 import com.example.orders.sharedkernel.outbox.OrderPlacedIntegrationEvent;
@@ -47,7 +46,7 @@ public class OrderSummaryProjector {
 			return;
 		}
 		jdbcTemplate.update(INSERT_IF_ABSENT_SQL, event.orderId().value(), event.customerId().value(),
-				OrderStatus.PLACED.name(), event.total().amount(), event.currency().code(), event.lines().size(),
+				OrderSummaryStatus.PLACED.name(), event.total().amount(), event.currency().code(), event.lines().size(),
 				timestamp(event.occurredAt()), event.orderId().value());
 	}
 
@@ -56,7 +55,7 @@ public class OrderSummaryProjector {
 		if (!processedEventStore.tryMarkProcessed(event.eventId(), CONSUMER)) {
 			return;
 		}
-		updateStatus(event.orderId().value(), OrderStatus.CONFIRMED, event.occurredAt());
+		updateStatus(event.orderId().value(), OrderSummaryStatus.CONFIRMED, event.occurredAt());
 	}
 
 	@EventListener
@@ -64,10 +63,10 @@ public class OrderSummaryProjector {
 		if (!processedEventStore.tryMarkProcessed(event.eventId(), CONSUMER)) {
 			return;
 		}
-		updateStatus(event.orderId().value(), OrderStatus.CANCELLED, event.occurredAt());
+		updateStatus(event.orderId().value(), OrderSummaryStatus.CANCELLED, event.occurredAt());
 	}
 
-	private void updateStatus(UUID orderId, OrderStatus status, Instant occurredAt) {
+	private void updateStatus(UUID orderId, OrderSummaryStatus status, Instant occurredAt) {
 		jdbcTemplate.update(UPDATE_STATUS_SQL, status.name(), timestamp(occurredAt), orderId);
 	}
 

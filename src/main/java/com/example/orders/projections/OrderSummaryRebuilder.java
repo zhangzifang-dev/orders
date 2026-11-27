@@ -2,8 +2,6 @@ package com.example.orders.projections;
 
 import static com.example.orders.projections.OrderSummaryStatements.INSERT_IF_ABSENT_SQL;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -22,6 +20,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>启动时仅在视图为空时重建，避免每次启动都覆盖已有投影。使用显式事务模板，
  * 保证监听器自调用场景下清空与重放仍在同一事务内。
+ *
+ * <p>{@code updated_at} 保留订单的事件时间（重建时使用 {@code placedAt}），而不是重建时刻；
+ * 确认/取消时间无法从写模型视图恢复，重建后的该字段可能早于增量投影写入的值。
  */
 @Component
 public class OrderSummaryRebuilder {
@@ -30,15 +31,12 @@ public class OrderSummaryRebuilder {
 
 	private final OrderApplicationService orderApplicationService;
 
-	private final Clock clock;
-
 	private final TransactionTemplate transactionTemplate;
 
 	public OrderSummaryRebuilder(JdbcTemplate jdbcTemplate, OrderApplicationService orderApplicationService,
-			Clock clock, PlatformTransactionManager transactionManager) {
+			PlatformTransactionManager transactionManager) {
 		this.jdbcTemplate = jdbcTemplate;
 		this.orderApplicationService = orderApplicationService;
-		this.clock = clock;
 		this.transactionTemplate = new TransactionTemplate(transactionManager);
 	}
 
@@ -61,16 +59,15 @@ public class OrderSummaryRebuilder {
 
 	private void doRebuild() {
 		jdbcTemplate.update("DELETE FROM order_summary_view");
-		Instant now = clock.instant();
-		OffsetDateTime updatedAt = OffsetDateTime.ofInstant(now, ZoneOffset.UTC);
 		List<OrderSummaryView> rows = orderApplicationService.listAll()
 			.stream()
 			.filter(order -> order.placedAt() != null)
-			.map(order -> OrderSummaryView.of(order, now))
+			.map(order -> OrderSummaryView.of(order, order.placedAt()))
 			.toList();
 		for (OrderSummaryView row : rows) {
 			jdbcTemplate.update(INSERT_IF_ABSENT_SQL, row.orderId(), row.customerId(), row.status(),
-					row.totalAmount(), row.currency(), row.lineCount(), updatedAt, row.orderId());
+					row.totalAmount(), row.currency(), row.lineCount(),
+					OffsetDateTime.ofInstant(row.updatedAt(), ZoneOffset.UTC), row.orderId());
 		}
 	}
 

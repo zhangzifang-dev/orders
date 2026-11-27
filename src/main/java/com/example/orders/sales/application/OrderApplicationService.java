@@ -10,6 +10,7 @@ import com.example.orders.sales.domain.OrderCancelled;
 import com.example.orders.sales.domain.OrderConfirmed;
 import com.example.orders.sales.domain.OrderPlaced;
 import com.example.orders.sales.domain.OrderRepository;
+import com.example.orders.sales.domain.OrderStatus;
 import com.example.orders.sales.domain.PricingPolicy;
 import com.example.orders.sharedkernel.CustomerId;
 import com.example.orders.sharedkernel.DomainEvent;
@@ -89,6 +90,27 @@ public class OrderApplicationService {
 		order.cancel(reason, clock.instant());
 		orderRepository.save(order);
 		appendIntegrationEvents(order);
+	}
+
+	/**
+	 * 幂等取消：订单已是 {@code CANCELLED} 时直接返回 {@code false}，不再触发状态迁移。
+	 *
+	 * <p>供跨上下文补偿使用，把“已取消则跳过”的判断留在销售上下文内部，
+	 * 避免其他上下文依赖销售领域模型。
+	 * @param orderId 订单 ID
+	 * @param reason 取消原因
+	 * @return 本次调用是否真正取消了订单
+	 */
+	@Transactional
+	public boolean cancelIfNotCancelled(OrderId orderId, String reason) {
+		Order order = load(orderId);
+		if (order.status() == OrderStatus.CANCELLED) {
+			return false;
+		}
+		order.cancel(reason, clock.instant());
+		orderRepository.save(order);
+		appendIntegrationEvents(order);
+		return true;
 	}
 
 	/**

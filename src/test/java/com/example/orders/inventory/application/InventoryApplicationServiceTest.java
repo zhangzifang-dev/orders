@@ -123,6 +123,16 @@ class InventoryApplicationServiceTest {
 	}
 
 	@Test
+	void releaseWithoutReservationDoesNotWriteEvent() {
+		seedStock(SKU_A, "商品A", 5);
+
+		service.release(OrderId.newId());
+
+		assertThat(outboxCount()).isZero();
+		assertThat(stockItemRepository.findById(SKU_A).orElseThrow().available()).isEqualTo(5);
+	}
+
+	@Test
 	void restockIncreasesAvailability() {
 		seedStock(SKU_A, "商品A", 5);
 

@@ -9,7 +9,17 @@ import java.util.UUID;
 public record CreateOrderRequest(UUID customerId, String currency, List<CreateOrderLineRequest> lines) {
 
 	public CreateOrderRequest {
-		lines = lines == null ? List.of() : List.copyOf(lines);
+		if (lines == null) {
+			lines = List.of();
+		}
+		else {
+			for (CreateOrderLineRequest line : lines) {
+				if (line == null) {
+					throw new IllegalArgumentException("订单行不能为空");
+				}
+			}
+			lines = List.copyOf(lines);
+		}
 	}
 
 }
