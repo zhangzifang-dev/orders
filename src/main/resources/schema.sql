@@ -39,3 +39,9 @@ CREATE TABLE IF NOT EXISTS billing_payment (
   gateway_ref VARCHAR(120), failure_reason VARCHAR(500),
   created_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS processed_event (
+  event_id UUID NOT NULL, consumer VARCHAR(120) NOT NULL,
+  processed_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  PRIMARY KEY (event_id, consumer)
+);
