@@ -42,10 +42,10 @@ public record OrderPlacedIntegrationEvent(UUID eventId, Instant occurredAt, Orde
 		return orderId.value().toString();
 	}
 
-}
+	/**
+	 * 集成事件中的订单行载荷。作为公共嵌套类型，其他上下文可直接读取其访问器。
+	 */
+	public record OrderLinePayload(Sku sku, String productName, Money unitPrice, int quantity) {
+	}
 
-/**
- * 集成事件中的订单行载荷。
- */
-record OrderLinePayload(Sku sku, String productName, Money unitPrice, int quantity) {
 }

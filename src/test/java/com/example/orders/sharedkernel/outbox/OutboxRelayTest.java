@@ -95,7 +95,8 @@ class OutboxRelayTest {
 		return new OrderPlacedIntegrationEvent(UUID.randomUUID(), Instant.parse("2026-11-27T10:15:30Z"),
 				OrderId.newId(), CustomerId.of(UUID.randomUUID()), currency, Money.of("120.00", currency),
 				Money.of("20.00", currency), Money.of("100.00", currency),
-				List.of(new OrderLinePayload(Sku.of("kb-01"), "机械键盘", Money.of("50.00", currency), 2)));
+				List.of(new OrderPlacedIntegrationEvent.OrderLinePayload(Sku.of("kb-01"), "机械键盘",
+						Money.of("50.00", currency), 2)));
 	}
 
 	@TestConfiguration
