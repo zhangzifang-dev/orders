@@ -54,7 +54,8 @@ public class Order extends AggregateRoot {
 		return new Order(orderId, customerId, currency);
 	}
 
-	public void addLine(LineId lineId, Sku sku, String productName, Money unitPrice, Quantity quantity) {
+	public void addLine(LineId lineId, Sku sku, String productName, Money unitPrice, Quantity quantity,
+			Instant occurredAt) {
 		if (unitPrice == null) {
 			throw new DomainException("单价不能为空");
 		}
@@ -66,17 +67,17 @@ public class Order extends AggregateRoot {
 		}
 		OrderLine line = new OrderLine(lineId, sku, productName, unitPrice, quantity);
 		lines.add(line);
-		registerEvent(new OrderLineAdded(UUID.randomUUID(), Instant.now(), orderId, lineId, sku, productName,
+		registerEvent(new OrderLineAdded(UUID.randomUUID(), occurredAt, orderId, lineId, sku, productName,
 				unitPrice, quantity));
 	}
 
-	public void removeLine(LineId lineId) {
+	public void removeLine(LineId lineId, Instant occurredAt) {
 		OrderLine line = lines.stream()
 			.filter(candidate -> candidate.lineId().equals(lineId))
 			.findFirst()
 			.orElseThrow(() -> new DomainException("订单行不存在: " + lineId));
 		lines.remove(line);
-		registerEvent(new OrderLineRemoved(UUID.randomUUID(), Instant.now(), orderId, lineId));
+		registerEvent(new OrderLineRemoved(UUID.randomUUID(), occurredAt, orderId, lineId));
 	}
 
 	public Money total() {
