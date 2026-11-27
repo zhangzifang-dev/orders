@@ -17,6 +17,9 @@ public class IntegrationEventRegistry {
 		register(OrderPlacedIntegrationEvent.EVENT_TYPE, OrderPlacedIntegrationEvent.class);
 		register(OrderConfirmedIntegrationEvent.EVENT_TYPE, OrderConfirmedIntegrationEvent.class);
 		register(OrderCancelledIntegrationEvent.EVENT_TYPE, OrderCancelledIntegrationEvent.class);
+		register(StockReservedIntegrationEvent.EVENT_TYPE, StockReservedIntegrationEvent.class);
+		register(StockReleasedIntegrationEvent.EVENT_TYPE, StockReleasedIntegrationEvent.class);
+		register(StockReservationFailedIntegrationEvent.EVENT_TYPE, StockReservationFailedIntegrationEvent.class);
 	}
 
 	public void register(String eventType, Class<? extends IntegrationEvent> eventClass) {

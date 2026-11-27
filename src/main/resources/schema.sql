@@ -18,3 +18,12 @@ CREATE TABLE IF NOT EXISTS sales_order_line (
   product_name VARCHAR(200) NOT NULL, unit_price_amount DECIMAL(19,2) NOT NULL,
   quantity INT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS inventory_stock_item (
+  sku VARCHAR(60) PRIMARY KEY, product_name VARCHAR(200) NOT NULL,
+  on_hand INT NOT NULL, version BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS inventory_reservation (
+  order_id UUID NOT NULL, sku VARCHAR(60) NOT NULL, quantity INT NOT NULL,
+  PRIMARY KEY (order_id, sku)
+);
