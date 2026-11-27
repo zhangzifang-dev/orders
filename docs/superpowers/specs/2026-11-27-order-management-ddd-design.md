@@ -241,22 +241,22 @@ DRAFT --place()--> PLACED --confirm()--> CONFIRMED
 POST /orders            -> Order(DRAFT)
 POST /orders/{id}/place -> Order(PLACED) + OrderPlaced
   -> Outbox -> Fulfillment 创建 FulfillmentProcess(STARTED)
-  -> Inventory.reserve  -> StockReserved      -> STOCK_RESERVED
-  -> Billing.issueAndCapture -> PaymentCaptured -> PAID
-  -> Sales.confirm      -> OrderConfirmed     -> COMPLETED
+  -> Inventory.reserve  -> inventory.stock.reserved.v1      -> STOCK_RESERVED
+  -> Billing.issueAndCapture -> billing.payment.captured.v1 -> PAID
+  -> Sales.confirm      -> sales.order.confirmed.v1     -> COMPLETED
 ```
 
 ### 7.2 失败路径
 
 ```
 库存不足:
-  Inventory.reserve -> StockReservationFailed
+  Inventory.reserve -> inventory.stock.reservation-failed.v1
   -> FulfillmentProcess(FAILED) -> Sales.cancel -> Order(CANCELLED)
 
 支付失败:
-  Billing.issueAndCapture -> PaymentFailed + Invoice(VOIDED)
+  Billing.issueAndCapture -> billing.payment.failed.v1 + Invoice(VOIDED)
   -> FulfillmentProcess(COMPENSATING)
-  -> Inventory.release -> StockReleased
+  -> Inventory.release -> inventory.stock.released.v1
   -> Sales.cancel -> Order(CANCELLED) -> FulfillmentProcess(CANCELLED)
 ```
 

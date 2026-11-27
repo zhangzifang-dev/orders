@@ -19,7 +19,7 @@ public record OrderSummaryView(UUID orderId, UUID customerId, String status, Big
 	/**
 	 * 从写模型视图生成投影行，供读模型重建使用。
 	 * @param order 订单写模型视图
-	 * @param updatedAt 重建时间
+	 * @param updatedAt 投影写入时间：重建时取订单的 placedAt，增量投影时取事件发生时间
 	 * @return 投影行
 	 */
 	public static OrderSummaryView of(OrderView order, Instant updatedAt) {

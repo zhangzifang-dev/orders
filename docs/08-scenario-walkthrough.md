@@ -23,7 +23,7 @@ Demo 通过 `SimulatedLegacyPaymentClient.setStatusCode("51")` 让失败路径�
 | 成功路径编排 | `src/main/java/com/example/orders/fulfillment/application/FulfillmentApplicationService.java`、`FulfillmentSteps.java` |
 | 成功路径测试 | `src/test/java/com/example/orders/fulfillment/FulfillmentHappyPathTest.java` |
 | 支付失败补偿测试 | `src/test/java/com/example/orders/fulfillment/FulfillmentCompensationTest.java` |
-| 库存不足路径 | `FulfillmentApplicationService.onOrderPlaced` 中 `StockShortage` 分支 + `FulfillmentSteps.failAndCancel` |
+| 库存不足路径 | `FulfillmentApplicationService.onOrderPlaced` 中 `StockShortage` 分支 + `FulfillmentSteps.markFailed` / `releaseStock` / `cancelOrder` / `recordFailure` |
 | 支付网关模拟 | `src/main/java/com/example/orders/billing/infrastructure/SimulatedLegacyPaymentClient.java` |
 
 ## Success path 成功路径
@@ -105,7 +105,7 @@ fulfillment.failed.v1
 1. Sales 下单，发布 `sales.order.placed.v1`；
 2. Fulfillment 启动流程，调用库存预占；
 3. `InventoryApplicationService.reserve` 发现可用量不足，**不修改任何库存**，写 `inventory.stock.reservation-failed.v1` 并返回 `StockShortage`；
-4. `FulfillmentApplicationService` 调 `FulfillmentSteps.failAndCancel`：流程 `STARTED → FAILED`，调用 Sales 取消订单（写 `sales.order.cancelled.v1`），写 `fulfillment.failed.v1`。
+4. `FulfillmentApplicationService` 依次调 `FulfillmentSteps.markFailed`、`releaseStock`、`cancelOrder`、`recordFailure`（各自独立事务、尽力而为）：流程 `STARTED → FAILED`，调用 Sales 取消订单（写 `sales.order.cancelled.v1`），写 `fulfillment.failed.v1`。
 
 注意这里不会出现 `inventory.stock.released.v1`，因为根本没有预占成功。
 

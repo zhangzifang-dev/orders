@@ -26,7 +26,7 @@ Mock 框架（本项目排除的是 Mockito）擅长「隔离」：把被测对�
 | 演示 | 两条路径的事件时间线 | `@SpringBootTest` + `DemoRunner.runScenarios()` | `src/test/java/com/example/orders/bootstrap/DemoRunnerTest.java` |
 | 架构 | 依赖规则 | ArchUnit | `ArchitectureTest` |
 
-当前共有 34 个测试类（33 个 `*Test` 类，含 `ArchitectureTest`，+ `OrdersApplicationTests`）；`./mvnw -B test` 运行 165 个测试方法。
+当前共有 34 个测试类（33 个 `*Test` 类，含 `ArchitectureTest`，+ `OrdersApplicationTests`）；`./mvnw -B test` 运行 166 个测试方法。
 
 ### 替代 mock 的具体手法
 
@@ -117,4 +117,4 @@ verify(orderRepository).save(order);
 
 ### 误解 5：测试数量等于覆盖质量
 
-本项目有 165 个测试方法，但重点不是数量，而是每个测试是否描述了一个业务事实。`OrderPlacedIntegrationEventContractTest` 只有 1 个测试，却专门钉住了「跨上下文能读取公开的行载荷」这一契约，价值很高。
+本项目有 166 个测试方法，但重点不是数量，而是每个测试是否描述了一个业务事实。`OrderPlacedIntegrationEventContractTest` 只有 1 个测试，却专门钉住了「跨上下文能读取公开的行载荷」这一契约，价值很高。

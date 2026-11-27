@@ -43,6 +43,16 @@ class ArchitectureTest {
 		.allowEmptyShould(false);
 
 	@ArchTest
+	static final ArchRule domainDoesNotDependOnProjections = noClasses()
+		.that()
+		.resideInAPackage("com.example.orders..domain..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.example.orders.projections..")
+		.because("projections consume application views and integration events, never domain models")
+		.allowEmptyShould(false);
+
+	@ArchTest
 	static final ArchRule salesDomainIsOnlyUsedInsideSales = noClasses()
 		.that()
 		.resideOutsideOfPackage("com.example.orders.sales..")
