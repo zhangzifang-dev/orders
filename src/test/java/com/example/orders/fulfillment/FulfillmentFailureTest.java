@@ -9,6 +9,7 @@ import com.example.orders.fulfillment.application.FulfillmentQueryService;
 import com.example.orders.fulfillment.application.port.BillingOutcome;
 import com.example.orders.fulfillment.application.port.BillingPort;
 import com.example.orders.inventory.application.InventoryApplicationService;
+import com.example.orders.inventory.application.InventoryQueryService;
 import com.example.orders.inventory.domain.StockItem;
 import com.example.orders.inventory.domain.StockItemRepository;
 import com.example.orders.sales.application.CreateOrderCommand;
@@ -50,6 +51,9 @@ class FulfillmentFailureTest {
 	private InventoryApplicationService inventoryService;
 
 	@Autowired
+	private InventoryQueryService inventoryApi;
+
+	@Autowired
 	private StockItemRepository stockItemRepository;
 
 	@Autowired
@@ -59,7 +63,7 @@ class FulfillmentFailureTest {
 	private JdbcClient jdbcClient;
 
 	@Test
-	void unexpectedStepFailureLeavesProcessTerminalAndWritesFailedEvent() {
+	void unexpectedStepFailureCompensatesAndWritesFailedEvent() {
 		Sku sku = Sku.of("SKU-" + UUID.randomUUID());
 		stockItemRepository.save(StockItem.create(sku, "机械键盘", 0));
 		inventoryService.restock(sku, 5);
@@ -71,8 +75,10 @@ class FulfillmentFailureTest {
 		orderApi.place(id);
 		relay.relayOnce();
 
-		assertThat(fulfillmentApi.get(id).status()).isEqualTo("FAILED");
+		assertThat(fulfillmentApi.get(id).status()).isEqualTo("CANCELLED");
 		assertThat(orderApi.get(id).status()).isEqualTo(OrderStatus.CANCELLED);
+		assertThat(inventoryApi.get(sku).available()).isEqualTo(5);
+		assertThat(inventoryApi.get(sku).reserved()).isZero();
 		assertThat(failedEventCount(id)).isEqualTo(1);
 	}
 
