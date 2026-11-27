@@ -77,7 +77,7 @@ Demo 启动的是普通 Web 应用，打印完时间线后进程会继续运行�
 ./mvnw -B test -Dtest='OrderTest,StockItemTest,InvoiceTest'
 ```
 
-完整校验（与 Task 23 的完成标准一致）：
+完整校验（与实施计划的完成标准一致）：
 
 ```bash
 ./mvnw -B verify
@@ -133,7 +133,7 @@ src/main/resources
 └── schema.sql                    全部表结构
 
 src/test/java/com/example/orders
-├── ...                           32 个测试类；无 Mockito
+├── ...                           34 个测试类；无 Mockito
 └── billing/support/FakePaymentGateway.java
 ```
 
@@ -148,7 +148,7 @@ src/test/java/com/example/orders
 | 聚合根 | `Order`、`StockItem`、`Invoice`、`Payment`、`FulfillmentProcess` |
 | 实体 | `OrderLine`、`Reservation` |
 | 值对象 | `Money`、`Currency`、`Sku`、`Quantity`、各 `*Id` |
-| 领域事件 | `OrderPlaced`、`StockReserved`、`PaymentCaptured`、`InvoiceVoided` 等 |
+| 领域事件 | `OrderPlaced`、`InvoiceIssued`、`PaymentCaptured`、`InvoiceVoided` 等 |
 | 集成事件 | `sharedkernel/outbox/*IntegrationEvent`，类型字符串带 `.v1` |
 | 领域服务 | `PricingPolicy` / `TieredPricingPolicy` |
 | 仓储 | `OrderRepository` 等 domain 接口 + `Jdbc*Repository` 实现 |
@@ -178,6 +178,6 @@ src/test/java/com/example/orders
 - 支付网关是模拟的；**超时按失败处理**，不做查询重试与对账。
 - 库存预占是「一个事务内多 SKU、全有或全无」；真实系统常拆成按 SKU 的事件并补偿。
 - Outbox 是进程内发布，不接消息中间件；投递语义为至少一次。
-- 没有定时调度器，Demo 显式驱动 relay。
+- 生产默认每 200ms 调度 relay；测试与 Demo profile 关闭调度器并显式驱动 relay，保持确定性。
 - 没有认证、授权、多租户、前端。
 - 事件溯源只是独立示例，不参与主流程（见 [ADR-0005](docs/adr/0005-no-event-sourcing-in-main-flow.md)）。

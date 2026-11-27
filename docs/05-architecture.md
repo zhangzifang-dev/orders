@@ -58,19 +58,25 @@ sales/
 | 跨上下文走端口 | `FulfillmentSteps` 依赖 `InventoryPort` 等接口 | 不 import `inventory.domain.*` |
 | 跨上下文走集成事件 | `OrderSummaryProjector` 监听 `OrderPlacedIntegrationEvent` | 不直接查询 `sales_order` 表维护投影 |
 
-### ArchUnit：计划中的守护者
+### ArchUnit：可执行的依赖规则
 
-Task 23 会在 `src/test/java/com/example/orders/ArchitectureTest.java` 加入 ArchUnit 测试，用来把上述规则变成可执行约束。**在 Task 23 完成前，这个文件尚不存在**；本节描述的是计划中的规则，Task 23 后会由 `ArchitectureTest` 强制执行。
+`src/test/java/com/example/orders/ArchitectureTest.java` 用 ArchUnit 把上述规则变成可执行约束。测试使用
+`@AnalyzeClasses(packages = "com.example.orders", importOptions = ImportOption.DoNotIncludeTests.class)`，
+只分析主代码；每个规则都带 `.because(...)` 与 `.allowEmptyShould(false)`，包名模式统一锚定到
+`com.example.orders..`，避免误匹配第三方库中的同名包。
 
-计划规则（与实施计划一致）：
+当前规则：
 
-1. `..domain..` 不得依赖 `org.springframework..`、`java.sql..`、`jakarta.persistence..`、`com.fasterxml..`；
-2. `sales.domain` 不得依赖 `inventory`、`billing`、`fulfillment`、`projections`；
-3. `inventory.domain`、`billing.domain`、`fulfillment.domain` 同样不得依赖其他业务上下文；
-4. `..domain..` 不得依赖 `..application..`、`..infrastructure..`、`..api..`；
-5. `examples.eventsourcing` 不得依赖 Spring。
+1. `com.example.orders..domain..` 不得依赖 `org.springframework..`、`java.sql..`、
+   `jakarta.persistence..`、`com.fasterxml..`、`tools.jackson..`；
+2. `com.example.orders..domain..` 不得依赖 `com.example.orders..application..`、
+   `..infrastructure..`、`..api..`；
+3. 对 `sales`、`inventory`、`billing`、`fulfillment` 各自：上下文之外的类不得依赖
+   `com.example.orders.<ctx>.domain..`（`sharedkernel` 与 `bootstrap` 例外）；
+4. `com.example.orders..sharedkernel..` 不得依赖任何业务上下文、`projections` 或 `examples`；
+5. `com.example.orders..examples.eventsourcing..` 不得依赖 Spring。
 
-注意：真实的 `ArchitectureTest` 会用 `@AnalyzeClasses(packages = "com.example.orders")` 扫描全部类；规则以 Task 23 的代码为准。如果规则失败，应当修依赖方向，而不是放宽规则。
+`bootstrap` 是刻意的**唯一豁免**：它是组合根，需要直接装配各上下文的领域对象与端口实现。其他代码必须走应用服务端口或集成事件。如果规则失败，应修依赖方向，而不是放宽规则。
 
 ### 持久化架构
 
@@ -94,13 +100,26 @@ Task 23 会在 `src/test/java/com/example/orders/ArchitectureTest.java` 加入 A
 | Outbox 单条发布 | `OutboxPublisher.publishOne @Transactional` | 分发与 `published_at` 同一事务 |
 | Fulfillment Saga | **编排者无事务**；每个步骤 `REQUIRES_NEW` | `FulfillmentApplicationService` + `FulfillmentSteps` |
 
-Fulfillment 的这种设计是刻意的：Saga 跨多个上下文，不能用一个数据库事务包住所有步骤；每步独立提交，失败后按已提交的进度补偿。补偿是**尽力而为**的：单个补偿动作失败会被记录并继续执行其他动作，最后 `finalizeCancelled` 会重新读取最新状态并自愈到 `CANCELLED`。
+Fulfillment 的这种设计是刻意的：Saga 跨多个上下文，不能用一个数据库事务包住所有步骤；每步独立提交，失败后按已提交的进度补偿。补偿是**尽力而为**的：单个补偿动作失败会被记录并继续执行其他动作，最后 `finalizeCancelled` 会重新读取最新状态并自愈到 `CANCELLED`。`STARTED` 路径的失败也按同样方式拆成独立步骤：标记 `FAILED`、幂等释放库存、取消订单、写失败事件各自提交，取消失败不会回滚失败状态或失败事件。
+
+> **刻意的取舍：支付网关调用在数据库事务内。** `BillingApplicationService.issueAndCapture` 是
+> `@Transactional`，`PaymentGateway.capture` 在发票/支付写入与 outbox 追加之间同步执行。这是实施计划
+> 明确接受的简化：换来了教学上的直观与确定性，但长网关调用会持有数据库连接与事务。生产系统应把网关
+> 调用移到事务外，并用「结果未知」状态、幂等键与对账处理超时。
+>
+> **补偿 `PAID` 状态不会退款。** Saga 从 `PAID` 进入 `COMPENSATING` 时只释放库存并取消订单；
+> 本项目没有退款命令，也不调用网关退款接口。真实系统必须新增退款步骤或人工处理。
 
 ### 组合根
+
+`bootstrap` 是整个应用**唯一的组合根**，也是 ArchUnit 跨上下文规则的唯一豁免（另有 `sharedkernel`
+作为允许的共享发布语言）。它负责把纯领域对象、应用服务、端口适配器与基础设施 bean 装配起来。
 
 - `bootstrap/ClockConfig`：提供 `Clock.systemUTC()`；
 - `bootstrap/SalesConfig`：把纯领域的 `TieredPricingPolicy` 暴露为 `PricingPolicy` bean；
 - `bootstrap/OutboxConfig`：装配 `OutboxAppender`、`OutboxPublisher`、`OutboxRelay`、`IntegrationEventRegistry`、`SpringEventDispatcher`；
+- `bootstrap/SchedulingConfig` + `bootstrap/OutboxScheduler`：开启调度并每 200ms 驱动一次 relay；
+  可用 `orders.outbox.scheduler.enabled=false` 关闭（测试与 demo profile 默认关闭）；
 - `config/JdbcMappingConfiguration`：持久化映射策略。
 
 `OutboxAppender` 刻意不加 `@Component`：它必须与调用方事务共用边界，由组合根显式装配更容易看清这一点。
@@ -123,6 +142,6 @@ Fulfillment 的这种设计是刻意的：Saga 跨多个上下文，不能用一
 
 本项目没有额外的通用 `mapper`、`facade`、`assembler` 层。`OrderRequestMapper` 只做 REST DTO ↔ 应用层命令/视图的翻译；`InventoryReservationFacade` 是库存并发重试的刻意门面（把重试放在事务代理之外），不是通用层；仓储内部手写映射。分层是为了隔离变化，不是为了堆类。
 
-### 误解 5：ArchUnit 规则已经生效
+### 误解 5：ArchUnit 规则可以放宽来通过构建
 
-当前 `src/test/java/com/example/orders/ArchitectureTest.java` **尚未创建**，要等 Task 23。现在依赖规则靠代码评审与包结构约束；Task 23 后才由测试自动守护。
+`src/test/java/com/example/orders/ArchitectureTest.java` 已经生效，并由 `./mvnw -B verify` 执行。规则失败时应调整代码依赖（例如把状态判断移回所属上下文、让投影使用自己的状态类型），而不是删规则或加 `allowEmptyShould(true)`（当前所有规则均为 `false`）。

@@ -77,7 +77,7 @@ Spring Boot 4 的构建细节（与 3.x 不同，实现时注意）：
 
 **领域事件与集成事件严格区分**：
 
-- 领域事件：聚合内部产生，命名用过去式，只在本上下文内消费（`OrderPlaced`、`StockReserved`）
+- 领域事件：聚合内部产生，命名用过去式，只在本上下文内消费（`OrderPlaced`、`InvoiceIssued`）
 - 集成事件：跨上下文契约，有稳定的 payload schema 和版本意识，经 Outbox 发布
 - 两者不共用同一个类，避免「改内部事件顺手破坏外部契约」
 
@@ -188,7 +188,8 @@ DRAFT --place()--> PLACED --confirm()--> CONFIRMED
 3. 释放不存在的预占是幂等的（无操作）
 4. `restock` 数量必须 > 0
 
-**集成事件**：`StockReserved`、`StockReservationFailed`、`StockReleased`（订单级，payload 含全部行）
+**集成事件**：`StockReservedIntegrationEvent`、`StockReservationFailedIntegrationEvent`、
+`StockReleasedIntegrationEvent`（订单级，payload 含全部行；聚合不再产生按 SKU 的领域事件）
 
 ### 6.4 Billing（支撑域）
 
@@ -203,7 +204,12 @@ DRAFT --place()--> PLACED --confirm()--> CONFIRMED
 - 外部模型用 `long amountInCents`、`String statusCode`（`"00"` 成功、`"51"` 余额不足、`"91"` 网关超时）
 - 适配器负责单位换算与状态翻译，领域模型永远看不到字符串状态码
 
-**集成事件**：`InvoiceIssued`、`PaymentCaptured`、`PaymentFailed`、`InvoiceVoided`
+**领域事件**：`InvoiceIssued`、`InvoiceVoided`、`PaymentCaptured`、`PaymentFailed`
+
+**集成事件**：Billing 应用服务排空发票与支付的领域事件并全部翻译为集成事件：
+`InvoiceIssuedIntegrationEvent`（`billing.invoice.issued.v1`）、`InvoiceVoidedIntegrationEvent`
+（`billing.invoice.voided.v1`）、`PaymentCapturedIntegrationEvent`（`billing.payment.captured.v1`）、
+`PaymentFailedIntegrationEvent`（`billing.payment.failed.v1`）
 
 ### 6.5 Fulfillment（支撑域）
 

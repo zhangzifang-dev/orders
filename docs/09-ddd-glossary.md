@@ -30,7 +30,7 @@
 | 值对象 | Value Object | 由值定义、不可变、可替换 | `Money`、`Currency`、`Sku`、`Quantity`、各 `*Id` |
 | 不变量 | Invariant | 聚合在任何时刻都必须满足的规则 | `Order` 的币种一致、至少一行、折扣边界；`StockItem.available >= 0` |
 | 状态机 | State Machine | 有明确状态与合法迁移的行为模型 | `Order.place/confirm/cancel`、`Invoice.markPaid/voidIt`、`FulfillmentProcess` 的 `switch` 迁移 |
-| 领域事件 | Domain Event | 聚合内已经发生的事实，过去式命名 | `OrderPlaced`、`StockReserved`、`PaymentCaptured` 等 |
+| 领域事件 | Domain Event | 聚合内已经发生的事实，过去式命名 | `OrderPlaced`、`InvoiceIssued`、`PaymentCaptured` 等 |
 | 集成事件 | Integration Event | 跨上下文、版本化的稳定契约 | `sharedkernel/outbox/*IntegrationEvent` |
 | 事件版本 | Event Versioning | 用类型字符串版本管理契约演进 | `.v1` 后缀，如 `sales.order.placed.v1` |
 | 领域服务 | Domain Service | 不属于实体/值对象的领域操作 | `PricingPolicy` / `TieredPricingPolicy` |

@@ -41,9 +41,6 @@ Outbox 的做法是：在业务事务里向 `outbox_event` 插一行；另一个
 | `OrderCancelled` | `sales.order.cancelled` | `Order` |
 | `OrderLineAdded` | `sales.order.line-added` | `Order` |
 | `OrderLineRemoved` | `sales.order.line-removed` | `Order` |
-| `StockReserved` | `inventory.stock.reserved` | `StockItem` |
-| `StockReleased` | `inventory.stock.released` | `StockItem` |
-| `StockReservationFailed` | `inventory.stock.reservation.failed` | `StockItem`（由应用层构造） |
 | `InvoiceIssued` | `billing.invoice.issued` | `Invoice` |
 | `InvoiceVoided` | `billing.invoice.voided` | `Invoice` |
 | `PaymentCaptured` | `billing.payment.captured` | `Payment` |
@@ -59,12 +56,14 @@ Outbox 的做法是：在业务事务里向 `outbox_event` 插一行；另一个
 | `StockReservedIntegrationEvent` | `inventory.stock.reserved.v1` | `inventory.stock` | Inventory |
 | `StockReleasedIntegrationEvent` | `inventory.stock.released.v1` | `inventory.stock` | Inventory |
 | `StockReservationFailedIntegrationEvent` | `inventory.stock.reservation-failed.v1` | `inventory.stock` | Inventory |
+| `InvoiceIssuedIntegrationEvent` | `billing.invoice.issued.v1` | `billing.invoice` | Billing |
+| `InvoiceVoidedIntegrationEvent` | `billing.invoice.voided.v1` | `billing.invoice` | Billing |
 | `PaymentCapturedIntegrationEvent` | `billing.payment.captured.v1` | `billing.payment` | Billing |
 | `PaymentFailedIntegrationEvent` | `billing.payment.failed.v1` | `billing.invoice` | Billing |
 | `FulfillmentCompletedIntegrationEvent` | `fulfillment.completed.v1` | `fulfillment.process` | Fulfillment |
 | `FulfillmentFailedIntegrationEvent` | `fulfillment.failed.v1` | `fulfillment.process` | Fulfillment |
 
-注意 `StockReservationFailed` 的领域事件字符串是 `inventory.stock.reservation.failed`，集成事件字符串是 `inventory.stock.reservation-failed.v1`：一个用点分段，一个用连字符。它们不是同一个字符串，代码中都能找到。
+注意：Inventory 不再定义按 SKU 的领域事件；它对外只发布订单级集成事件 `StockReservedIntegrationEvent` / `StockReleasedIntegrationEvent` / `StockReservationFailedIntegrationEvent`，由库存应用服务直接构造。`StockReleasedIntegrationEvent` 只在确实释放了预占时写入，未预占的幂等补偿不会产生虚假事件。Billing 则保留四个领域事件，并在 `BillingApplicationService` 中全部翻译为对应的集成事件。
 
 ### 写入路径
 
@@ -124,7 +123,7 @@ OrderApplicationService.place (@Transactional)
 - `StockItem.reserve` 对同一 `orderId` 重复调用直接返回，不重复扣减；
 - `StockItem.release` 对不存在的预占无操作；
 - `BillingApplicationService.issueAndCapture` 通过 `billing_invoice.order_id` 唯一约束，重复调用直接返回首次结果，不再调用支付网关；
-- `SalesPortAdapter.cancel` 在订单已 `CANCELLED` 时直接返回，避免补偿重放触发非法状态迁移。
+- `SalesPortAdapter.cancel` 调用销售应用的幂等方法 `OrderApplicationService.cancelIfNotCancelled`，订单已 `CANCELLED` 时直接返回，避免补偿重放触发非法状态迁移。
 
 ### 读模型投影
 
@@ -138,15 +137,18 @@ OrderApplicationService.place (@Transactional)
 
 `OrderSummaryRebuilder` 在应用启动时若投影表为空，会从写模型全量重建；它先用 `DELETE FROM order_summary_view`，再遍历 `OrderApplicationService.listAll()` 中 `placedAt != null` 的订单插入。重建使用 `TransactionTemplate`，避免自调用绕过事务。
 
-### 一个重要实现事实：没有定时调度器
+### 调度器与确定性
 
-设计文档描述 relay 每 200ms 轮询，但**当前代码没有 `@Scheduled` 或 `@EnableScheduling`**。生产启动时 `OutboxRelay` 只是一个 bean，不会被自动调用。
+`bootstrap/SchedulingConfig` 开启 `@EnableScheduling`，`bootstrap/OutboxScheduler` 默认每 200ms 调用一次
+`OutboxRelay.relayOnce()`。因此普通 REST 启动后，下单、履约与投影会自动推进。
 
-- Demo：`DemoRunner.relayUntilIdle()` 显式循环 `relayOnce()`，直到没有待发布事件；
-- 测试：测试方法显式注入 `OutboxRelay` 并调用 `relayOnce()`；
-- 普通 REST 启动：下单后事件会留在 `outbox_event`，履约与投影不会自动推进。
+为了保持测试和演示的确定性：
 
-这是教学项目为了确定性做的简化。真实系统需要调度器、线程池、重试退避与监控；本项目把这些留作练习。
+- `application-test.yml` 与 `application-demo.yml` 设置 `orders.outbox.scheduler.enabled=false`；
+- 测试显式注入 `OutboxRelay` 并调用 `relayOnce()`；
+- `DemoRunner.relayUntilIdle()` 显式循环 `relayOnce()`，直到没有待发布事件。
+
+调度间隔由 `orders.outbox.relay-interval` 覆盖，默认 200ms。这是教学项目的最小实现；真实系统还需要线程池、失败退避、死信与监控。
 
 ### 超时与一致性
 

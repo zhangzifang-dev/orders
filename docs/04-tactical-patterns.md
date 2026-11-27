@@ -40,7 +40,7 @@
 | 领域事件 | `OrderPlaced` | `src/main/java/com/example/orders/sales/domain/OrderPlaced.java` | `sales.order.placed`，携带行快照与金额 |
 | 领域事件 | `OrderConfirmed` / `OrderCancelled` | `src/main/java/com/example/orders/sales/domain/` | `sales.order.confirmed` / `sales.order.cancelled` |
 | 领域事件 | `OrderLineAdded` / `OrderLineRemoved` | `src/main/java/com/example/orders/sales/domain/` | `sales.order.line-added` / `sales.order.line-removed` |
-| 领域事件 | `StockReserved` / `StockReleased` / `StockReservationFailed` | `src/main/java/com/example/orders/inventory/domain/` | 领域事件不带版本；失败事件由应用层构造 |
+| 集成事件（Inventory） | `StockReservedIntegrationEvent` / `StockReleasedIntegrationEvent` / `StockReservationFailedIntegrationEvent` | `src/main/java/com/example/orders/sharedkernel/outbox/` | 订单级发布契约；Inventory 聚合不再产生按 SKU 的领域事件 |
 | 领域事件 | `InvoiceIssued` / `InvoiceVoided` / `PaymentCaptured` / `PaymentFailed` | `src/main/java/com/example/orders/billing/domain/` | Billing 内部事实 |
 | 领域事件基接口 | `DomainEvent` | `src/main/java/com/example/orders/sharedkernel/DomainEvent.java` | `eventId/occurredAt/eventType/aggregateId` |
 | 领域服务 | `PricingPolicy` | `src/main/java/com/example/orders/sales/domain/PricingPolicy.java` | 折扣策略接口：`Money discountFor(Order)` |
@@ -64,7 +64,7 @@
 | 防腐层 | `ExternalPaymentGatewayAdapter` | `src/main/java/com/example/orders/billing/infrastructure/ExternalPaymentGatewayAdapter.java` | 外部「分 + 状态码」→ 本地 `CaptureResult` |
 | 防腐层端口 | `PaymentGateway` | `src/main/java/com/example/orders/billing/domain/PaymentGateway.java` | 领域层定义的支付端口 |
 | 集成事件契约 | `IntegrationEvent` | `src/main/java/com/example/orders/sharedkernel/outbox/IntegrationEvent.java` | `eventId/eventType/aggregateType/aggregateId/occurredAt` |
-| 集成事件 | `OrderPlacedIntegrationEvent` 等 10 个 | `src/main/java/com/example/orders/sharedkernel/outbox/` | 类型字符串带 `.v1` |
+| 集成事件 | `OrderPlacedIntegrationEvent` 等 12 个 | `src/main/java/com/example/orders/sharedkernel/outbox/` | 类型字符串带 `.v1` |
 | 发件箱 | `OutboxAppender` | `src/main/java/com/example/orders/sharedkernel/outbox/OutboxAppender.java` | 序列化 + 追加，不开事务 |
 | 发件箱仓储 | `JdbcOutboxRepository` | `src/main/java/com/example/orders/sharedkernel/outbox/JdbcOutboxRepository.java` | `outbox_event` 表 |
 | 发布器 | `OutboxPublisher` | `src/main/java/com/example/orders/sharedkernel/outbox/OutboxPublisher.java` | 单条事件独立事务：反序列化 → 分发 → 标记已发布 |
@@ -74,7 +74,7 @@
 | 读模型重建 | `OrderSummaryRebuilder` | `src/main/java/com/example/orders/projections/OrderSummaryRebuilder.java` | 启动时视图为空则从写模型重建 |
 | 事件溯源示例 | `Account` / `EventStore` / `InMemoryEventStore` | `src/main/java/com/example/orders/examples/eventsourcing/` | 不接 Spring，独立示例 |
 | 领域异常 | `DomainException` | `src/main/java/com/example/orders/sharedkernel/DomainException.java` | 所有领域规则异常的根 |
-| 状态异常 | `InvalidOrderStateException` / `InvalidPaymentStateException` / `InvalidFulfillmentStateException` | 各上下文 `domain` 包 | 非法状态迁移，API 映射为 409 |
+| 状态异常 | `InvalidOrderStateException` / `InvalidPaymentStateException` / `InvalidFulfillmentStateException` | 各上下文 `domain` 包 | 非法状态迁移；当前只有 `InvalidOrderStateException` 在 `ApiExceptionHandler` 中映射为 409，另外两个经 `DomainException` 回退为 400 |
 | 未找到异常 | `NotFoundException` | `src/main/java/com/example/orders/sharedkernel/NotFoundException.java` | API 映射为 404 |
 
 ### 静态工厂与重建
