@@ -105,7 +105,7 @@ flowchart LR
 
 ### 反例 1：所有上下文共享同一个领域模型
 
-如果让 Inventory 直接使用 Sales 的 `Order` 聚合，或者让 Billing 直接读 `sales_order` 表，那么 Sales 改一个字段就会破坏其他上下文。本项目的跨上下文契约只有两种：**应用服务端口**与**集成事件**；没有共享领域对象。
+如果让 Inventory 直接使用 Sales 的 `Order` 聚合，或者让 Billing 直接读 `sales_order` 表，那么 Sales 改一个字段就会破坏其他上下文。本项目的跨上下文通信契约只有两种：**应用服务端口**与**集成事件**；此外共享内核提供共同的值类型，但不包含共享领域对象。
 
 ### 反例 2：直接 import 对方的 domain 包
 

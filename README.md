@@ -133,7 +133,7 @@ src/main/resources
 └── schema.sql                    全部表结构
 
 src/test/java/com/example/orders
-├── ...                           31 个测试类；无 Mockito
+├── ...                           32 个测试类；无 Mockito
 └── billing/support/FakePaymentGateway.java
 ```
 

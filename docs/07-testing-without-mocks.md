@@ -26,7 +26,7 @@ Mock 框架（本项目排除的是 Mockito）擅长「隔离」：把被测对�
 | 演示 | 两条路径的事件时间线 | `@SpringBootTest` + `DemoRunner.runScenarios()` | `src/test/java/com/example/orders/bootstrap/DemoRunnerTest.java` |
 | 架构 | 依赖规则 | ArchUnit（Task 23 加入） | `ArchitectureTest`（计划中） |
 
-当前共有 31 个测试类；`./mvnw -B test` 运行 152 个测试方法。
+当前共有 32 个测试类（31 个 `*Test` 类 + `OrdersApplicationTests`）；`./mvnw -B test` 运行 152 个测试方法。
 
 ### 替代 mock 的具体手法
 
@@ -55,7 +55,7 @@ assertThat(order.pullDomainEvents()).hasSize(1);
 
 #### 4. 外部系统才用测试替身
 
-全项目唯一的手写测试替身是 `src/test/java/com/example/orders/billing/support/FakePaymentGateway.java`，它实现 `PaymentGateway`：
+全项目唯一完整的外部系统 Fake 是 `src/test/java/com/example/orders/billing/support/FakePaymentGateway.java`，它实现 `PaymentGateway`：
 
 - 构造时可传入一串 `CaptureResult`，按调用顺序返回；
 - `alwaysReturning(result)` 每次返回同一结果；

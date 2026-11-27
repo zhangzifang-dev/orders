@@ -9,7 +9,7 @@ Demo 数据在 `src/main/java/com/example/orders/bootstrap/DemoData.java`：
 - 客户：`11111111-1111-1111-1111-111111111111`
 - 成功路径 SKU：`DEMO-KEYBOARD`，单价 199.00 CNY，数量 2
 - 失败路径 SKU：`DEMO-MOUSE`，单价 89.00 CNY，数量 3
-- 每个场景启动前补货 20 件
+- 运行演示前为两个 SKU 各补货 20 件（`DemoRunner.runScenarios` 在两个场景之前分别调用一次 `ensureStock`）
 
 Demo 通过 `SimulatedLegacyPaymentClient.setStatusCode("51")` 让失败路径的支付被拒绝（`51` = 余额不足），结束后恢复 `"00"`。
 

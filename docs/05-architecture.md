@@ -121,7 +121,7 @@ Fulfillment 的这种设计是刻意的：Saga 跨多个上下文，不能用一
 
 ### 误解 4：分层越多越好
 
-本项目没有额外的 `mapper`、`facade`、`assembler` 层。`OrderRequestMapper` 只做 REST DTO ↔ 应用层命令/视图的翻译；仓储内部手写映射。分层是为了隔离变化，不是为了堆类。
+本项目没有额外的通用 `mapper`、`facade`、`assembler` 层。`OrderRequestMapper` 只做 REST DTO ↔ 应用层命令/视图的翻译；`InventoryReservationFacade` 是库存并发重试的刻意门面（把重试放在事务代理之外），不是通用层；仓储内部手写映射。分层是为了隔离变化，不是为了堆类。
 
 ### 误解 5：ArchUnit 规则已经生效
 
