@@ -58,8 +58,8 @@ public class FulfillmentApplicationService {
 
 			BillingOutcome billing = steps.pay(process, event.orderId(), event.customerId(), event.payable());
 			if (billing instanceof ChargeFailed failed) {
-				// Task 18 将在此接入补偿：释放库存、取消订单并标记 CANCELLED。
-				steps.failAndCancel(process, event.orderId(), failed.reason());
+				// 支付失败（含超时）：释放已预占库存、取消订单，并把流程推进到 CANCELLED。
+				steps.compensate(process, event.orderId(), failed.reason());
 				return;
 			}
 

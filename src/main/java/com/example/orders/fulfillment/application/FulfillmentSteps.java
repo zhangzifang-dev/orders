@@ -24,6 +24,8 @@ import com.example.orders.sharedkernel.outbox.FulfillmentFailedIntegrationEvent;
 import com.example.orders.sharedkernel.outbox.OutboxAppender;
 import com.example.orders.sharedkernel.outbox.ProcessedEventStore;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class FulfillmentSteps {
+
+	private static final Logger log = LoggerFactory.getLogger(FulfillmentSteps.class);
 
 	private static final String CONSUMER = "fulfillment";
 
@@ -119,6 +123,41 @@ public class FulfillmentSteps {
 		process.complete(now);
 		processRepository.save(process);
 		outboxAppender.append(new FulfillmentCompletedIntegrationEvent(UUID.randomUUID(), now, orderId));
+	}
+
+	/**
+	 * 支付失败后的补偿：释放已预占库存、取消订单，并把流程推进到 {@code CANCELLED}。
+	 *
+	 * <p>补偿动作各自幂等：库存释放对同一订单重复调用不会改变数量；订单取消在适配器内
+	 * 先读取状态，已取消时直接跳过。任一补偿动作抛出异常都不会阻止流程进入终态：异常被记录，
+	 * 流程仍标记为 {@code CANCELLED}，并把次要失败原因写入失败事件。
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void compensate(FulfillmentProcess process, OrderId orderId, String reason) {
+		Instant now = clock.instant();
+		process.startCompensation(reason, now);
+
+		String secondaryFailure = null;
+		try {
+			inventoryPort.release(orderId);
+		}
+		catch (RuntimeException ex) {
+			secondaryFailure = "释放库存失败: " + ex.getMessage();
+			log.error("补偿释放库存失败: orderId={}", orderId, ex);
+		}
+		try {
+			salesPort.cancel(orderId, reason);
+		}
+		catch (RuntimeException ex) {
+			String cancelFailure = "取消订单失败: " + ex.getMessage();
+			secondaryFailure = secondaryFailure == null ? cancelFailure : secondaryFailure + "; " + cancelFailure;
+			log.error("补偿取消订单失败: orderId={}", orderId, ex);
+		}
+
+		process.markCancelled(now);
+		processRepository.save(process);
+		String eventReason = secondaryFailure == null ? reason : reason + "（补偿异常: " + secondaryFailure + "）";
+		outboxAppender.append(new FulfillmentFailedIntegrationEvent(UUID.randomUUID(), now, orderId, eventReason));
 	}
 
 	/**
