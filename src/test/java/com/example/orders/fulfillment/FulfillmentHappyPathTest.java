@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.example.orders.fulfillment.application.FulfillmentQueryService;
+import com.example.orders.fulfillment.application.port.ReserveLine;
 import com.example.orders.inventory.application.InventoryApplicationService;
 import com.example.orders.inventory.application.InventoryQueryService;
 import com.example.orders.inventory.domain.StockItem;
@@ -70,6 +71,14 @@ class FulfillmentHappyPathTest {
 		assertThat(orderApi.get(id).status()).isEqualTo(OrderStatus.CONFIRMED);
 		assertThat(fulfillmentApi.get(id).status()).isEqualTo("COMPLETED");
 		assertThat(inventoryApi.get(sku).reserved()).isEqualTo(2);
+	}
+
+	@Test
+	void fulfillmentPortOwnsItsReserveLineType() {
+		ReserveLine line = new ReserveLine(Sku.of("SKU-PORT"), 3);
+
+		assertThat(line.sku()).isEqualTo(Sku.of("SKU-PORT"));
+		assertThat(line.quantity()).isEqualTo(3);
 	}
 
 }

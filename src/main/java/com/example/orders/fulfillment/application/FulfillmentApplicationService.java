@@ -6,11 +6,13 @@ import java.util.Optional;
 import com.example.orders.fulfillment.application.port.BillingOutcome;
 import com.example.orders.fulfillment.application.port.ChargeFailed;
 import com.example.orders.fulfillment.application.port.ReservationResult;
+import com.example.orders.fulfillment.application.port.ReserveLine;
 import com.example.orders.fulfillment.application.port.StockShortage;
 import com.example.orders.fulfillment.domain.FulfillmentProcess;
-import com.example.orders.inventory.application.ReserveLine;
 import com.example.orders.sharedkernel.outbox.OrderPlacedIntegrationEvent;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class FulfillmentApplicationService {
+
+	private static final Logger log = LoggerFactory.getLogger(FulfillmentApplicationService.class);
 
 	private final FulfillmentSteps steps;
 
@@ -41,24 +45,31 @@ public class FulfillmentApplicationService {
 		}
 		FulfillmentProcess process = claimed.get();
 
-		List<ReserveLine> lines = event.lines()
-			.stream()
-			.map(line -> new ReserveLine(line.sku(), line.quantity()))
-			.toList();
-		ReservationResult reservation = steps.reserve(process, lines);
-		if (reservation instanceof StockShortage shortage) {
-			steps.failAndCancel(process, event.orderId(), shortage.reason());
-			return;
-		}
+		try {
+			List<ReserveLine> lines = event.lines()
+				.stream()
+				.map(line -> new ReserveLine(line.sku(), line.quantity()))
+				.toList();
+			ReservationResult reservation = steps.reserve(process, lines);
+			if (reservation instanceof StockShortage shortage) {
+				steps.failAndCancel(process, event.orderId(), shortage.reason());
+				return;
+			}
 
-		BillingOutcome billing = steps.pay(process, event.orderId(), event.customerId(), event.payable());
-		if (billing instanceof ChargeFailed failed) {
-			// Task 18 将在此接入补偿：释放库存、取消订单并标记 CANCELLED。
-			steps.failAndCancel(process, event.orderId(), failed.reason());
-			return;
-		}
+			BillingOutcome billing = steps.pay(process, event.orderId(), event.customerId(), event.payable());
+			if (billing instanceof ChargeFailed failed) {
+				// Task 18 将在此接入补偿：释放库存、取消订单并标记 CANCELLED。
+				steps.failAndCancel(process, event.orderId(), failed.reason());
+				return;
+			}
 
-		steps.confirmAndComplete(process, event.orderId());
+			steps.confirmAndComplete(process, event.orderId());
+		}
+		catch (Exception ex) {
+			// 认领已提交，异常后不能让流程停在非终态：记录日志并转入失败终态。
+			log.error("履约流程执行失败，转入失败终态: orderId={}", event.orderId(), ex);
+			steps.failAndCancel(process, event.orderId(), "系统错误: " + ex.getMessage());
+		}
 	}
 
 }

@@ -2,7 +2,6 @@ package com.example.orders.fulfillment.application.port;
 
 import java.util.List;
 
-import com.example.orders.inventory.application.ReserveLine;
 import com.example.orders.sharedkernel.OrderId;
 
 /**

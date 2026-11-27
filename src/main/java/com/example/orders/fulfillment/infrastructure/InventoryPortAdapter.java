@@ -4,11 +4,11 @@ import java.util.List;
 
 import com.example.orders.fulfillment.application.port.InventoryPort;
 import com.example.orders.fulfillment.application.port.ReservationResult;
+import com.example.orders.fulfillment.application.port.ReserveLine;
 import com.example.orders.fulfillment.application.port.Reserved;
 import com.example.orders.fulfillment.application.port.StockShortage;
 import com.example.orders.inventory.application.InventoryApplicationService;
 import com.example.orders.inventory.application.InventoryReservationFacade;
-import com.example.orders.inventory.application.ReserveLine;
 import com.example.orders.sharedkernel.OrderId;
 
 import org.springframework.stereotype.Service;
@@ -33,9 +33,16 @@ public class InventoryPortAdapter implements InventoryPort {
 
 	@Override
 	public ReservationResult reserve(OrderId orderId, List<ReserveLine> lines) {
-		com.example.orders.inventory.application.ReservationResult result = reservationFacade.reserve(orderId, lines);
+		List<com.example.orders.inventory.application.ReserveLine> inventoryLines = lines.stream()
+			.map(line -> new com.example.orders.inventory.application.ReserveLine(line.sku(), line.quantity()))
+			.toList();
+		com.example.orders.inventory.application.ReservationResult result = reservationFacade.reserve(orderId,
+				inventoryLines);
 		return switch (result) {
-			case com.example.orders.inventory.application.Reserved reserved -> new Reserved(reserved.lines());
+			case com.example.orders.inventory.application.Reserved reserved -> new Reserved(reserved.lines()
+				.stream()
+				.map(line -> new ReserveLine(line.sku(), line.quantity()))
+				.toList());
 			case com.example.orders.inventory.application.StockShortage shortage -> new StockShortage(shortage.reason());
 		};
 	}
