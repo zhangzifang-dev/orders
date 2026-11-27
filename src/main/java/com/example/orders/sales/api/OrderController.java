@@ -3,12 +3,14 @@ package com.example.orders.sales.api;
 import java.util.List;
 import java.util.UUID;
 
+import com.example.orders.projections.OrderSummary;
+import com.example.orders.projections.OrderSummaryQuery;
 import com.example.orders.sales.api.dto.AddLineRequest;
 import com.example.orders.sales.api.dto.CancelOrderRequest;
 import com.example.orders.sales.api.dto.CreateOrderRequest;
 import com.example.orders.sales.api.dto.OrderResponse;
+import com.example.orders.sales.api.dto.OrderSummaryResponse;
 import com.example.orders.sales.application.OrderApplicationService;
-import com.example.orders.sales.application.OrderView;
 import com.example.orders.sales.domain.LineId;
 import com.example.orders.sharedkernel.Currency;
 import com.example.orders.sharedkernel.CustomerId;
@@ -34,10 +36,14 @@ public class OrderController {
 
 	private final OrderApplicationService orderApplicationService;
 
+	private final OrderSummaryQuery orderSummaryQuery;
+
 	private final OrderRequestMapper mapper;
 
-	public OrderController(OrderApplicationService orderApplicationService, OrderRequestMapper mapper) {
+	public OrderController(OrderApplicationService orderApplicationService, OrderSummaryQuery orderSummaryQuery,
+			OrderRequestMapper mapper) {
 		this.orderApplicationService = orderApplicationService;
+		this.orderSummaryQuery = orderSummaryQuery;
 		this.mapper = mapper;
 	}
 
@@ -82,9 +88,9 @@ public class OrderController {
 	}
 
 	@GetMapping
-	public List<OrderResponse> list(@RequestParam UUID customerId) {
-		List<OrderView> views = orderApplicationService.listByCustomer(CustomerId.of(customerId));
-		return views.stream().map(mapper::toResponse).toList();
+	public List<OrderSummaryResponse> list(@RequestParam UUID customerId) {
+		List<OrderSummary> summaries = orderSummaryQuery.byCustomer(CustomerId.of(customerId));
+		return summaries.stream().map(mapper::toResponse).toList();
 	}
 
 }

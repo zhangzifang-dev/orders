@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.UUID;
 
+import com.example.orders.inventory.application.InventoryApplicationService;
+import com.example.orders.inventory.domain.StockItem;
+import com.example.orders.inventory.domain.StockItemRepository;
 import com.example.orders.sales.application.CreateOrderCommand;
 import com.example.orders.sales.application.CreateOrderLineCommand;
 import com.example.orders.sales.application.OrderApplicationService;
@@ -21,12 +24,15 @@ import com.example.orders.sharedkernel.Money;
 import com.example.orders.sharedkernel.OrderId;
 import com.example.orders.sharedkernel.Quantity;
 import com.example.orders.sharedkernel.Sku;
+import com.example.orders.sharedkernel.outbox.OutboxRelay;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -47,6 +53,26 @@ class OrderControllerTest {
 
 	@Autowired
 	private OrderApplicationService orderApplicationService;
+
+	@Autowired
+	private OutboxRelay relay;
+
+	@Autowired
+	private InventoryApplicationService inventoryService;
+
+	@Autowired
+	private StockItemRepository stockItemRepository;
+
+	@Autowired
+	private JdbcClient jdbcClient;
+
+	/**
+	 * 清掉上一个用例遗留的未发布事件，避免共享 H2 中的毒事件阻塞本用例的 relay。
+	 */
+	@BeforeEach
+	void clearPendingOutbox() {
+		jdbcClient.sql("DELETE FROM outbox_event WHERE published_at IS NULL").update();
+	}
 
 	@Test
 	void createsDraftOrder() throws Exception {
@@ -155,18 +181,24 @@ class OrderControllerTest {
 	}
 
 	@Test
-	void listsOrdersByCustomer() throws Exception {
+	void listsOrdersByCustomerFromReadModel() throws Exception {
 		CustomerId customerId = CustomerId.of(UUID.randomUUID());
-		OrderId first = orderApplicationService
-			.create(new CreateOrderCommand(customerId, Currency.CNY, List.of()));
-		OrderId second = orderApplicationService
-			.create(new CreateOrderCommand(customerId, Currency.CNY, List.of()));
+		Sku sku = Sku.of("SKU-" + UUID.randomUUID());
+		stockItemRepository.save(StockItem.create(sku, "键盘", 0));
+		inventoryService.restock(sku, 10);
+		OrderId first = createDraftWithOneLine(customerId, sku);
+		OrderId second = createDraftWithOneLine(customerId, sku);
+		orderApplicationService.place(first);
+		orderApplicationService.place(second);
+		drainRelay();
 
 		mockMvc.perform(get("/api/orders").param("customerId", customerId.toString()))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.length()").value(2))
 			.andExpect(jsonPath("$[0].customerId").value(customerId.toString()))
-			.andExpect(jsonPath("$[0].status").value("DRAFT"));
+			.andExpect(jsonPath("$[0].status").value("CONFIRMED"))
+			.andExpect(jsonPath("$[0].lineCount").value(1))
+			.andExpect(jsonPath("$[0].total").value(398.00));
 
 		String body = mockMvc.perform(get("/api/orders").param("customerId", customerId.toString()))
 			.andReturn()
@@ -175,9 +207,21 @@ class OrderControllerTest {
 		assertThat(body).contains(first.toString(), second.toString());
 	}
 
+	private void drainRelay() {
+		int published;
+		do {
+			published = relay.relayOnce();
+		}
+		while (published > 0);
+	}
+
 	private OrderId createDraftWithOneLine() {
-		return orderApplicationService.create(new CreateOrderCommand(CustomerId.of(UUID.randomUUID()), Currency.CNY,
-				List.of(new CreateOrderLineCommand(Sku.of("SKU-1"), "键盘", Money.of("199.00", Currency.CNY),
+		return createDraftWithOneLine(CustomerId.of(UUID.randomUUID()), Sku.of("SKU-1"));
+	}
+
+	private OrderId createDraftWithOneLine(CustomerId customerId, Sku sku) {
+		return orderApplicationService.create(new CreateOrderCommand(customerId, Currency.CNY,
+				List.of(new CreateOrderLineCommand(sku, "键盘", Money.of("199.00", Currency.CNY),
 						Quantity.of(2)))));
 	}
 

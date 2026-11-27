@@ -3,11 +3,13 @@ package com.example.orders.sales.api;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.example.orders.projections.OrderSummary;
 import com.example.orders.sales.api.dto.AddLineRequest;
 import com.example.orders.sales.api.dto.CreateOrderLineRequest;
 import com.example.orders.sales.api.dto.CreateOrderRequest;
 import com.example.orders.sales.api.dto.OrderLineResponse;
 import com.example.orders.sales.api.dto.OrderResponse;
+import com.example.orders.sales.api.dto.OrderSummaryResponse;
 import com.example.orders.sales.application.AddOrderLineCommand;
 import com.example.orders.sales.application.CreateOrderCommand;
 import com.example.orders.sales.application.CreateOrderLineCommand;
@@ -61,6 +63,17 @@ public class OrderRequestMapper {
 		return new OrderResponse(view.orderId().value(), view.customerId().value(), view.status().name(),
 				view.currency().code(), view.total().amount(), view.discount().amount(), view.payable().amount(),
 				lines, view.placedAt(), view.cancelReason());
+	}
+
+	/**
+	 * 把读模型摘要翻译为列表响应体。
+	 * @param summary 订单摘要
+	 * @return 订单摘要响应体
+	 */
+	public OrderSummaryResponse toResponse(OrderSummary summary) {
+		return new OrderSummaryResponse(summary.orderId().value(), summary.customerId().value(),
+				summary.status().name(), summary.total().amount(), summary.total().currency().code(),
+				summary.lineCount(), summary.updatedAt());
 	}
 
 	private CreateOrderLineCommand toCommand(CreateOrderLineRequest request, Currency currency) {

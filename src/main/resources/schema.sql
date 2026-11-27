@@ -50,3 +50,9 @@ CREATE TABLE IF NOT EXISTS processed_event (
   processed_at TIMESTAMP WITH TIME ZONE NOT NULL,
   PRIMARY KEY (event_id, consumer)
 );
+
+CREATE TABLE IF NOT EXISTS order_summary_view (
+  order_id UUID PRIMARY KEY, customer_id UUID NOT NULL, status VARCHAR(20) NOT NULL,
+  total_amount DECIMAL(19,2) NOT NULL, currency VARCHAR(3) NOT NULL,
+  line_count INT NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
