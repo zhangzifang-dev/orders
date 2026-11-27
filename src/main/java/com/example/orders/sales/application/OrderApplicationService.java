@@ -11,6 +11,7 @@ import com.example.orders.sales.domain.OrderConfirmed;
 import com.example.orders.sales.domain.OrderPlaced;
 import com.example.orders.sales.domain.OrderRepository;
 import com.example.orders.sales.domain.PricingPolicy;
+import com.example.orders.sharedkernel.CustomerId;
 import com.example.orders.sharedkernel.DomainEvent;
 import com.example.orders.sharedkernel.NotFoundException;
 import com.example.orders.sharedkernel.OrderId;
@@ -110,6 +111,16 @@ public class OrderApplicationService {
 	@Transactional(readOnly = true)
 	public List<OrderView> listAll() {
 		return orderRepository.findAll().stream().map(this::toView).toList();
+	}
+
+	/**
+	 * 按客户查询订单视图。Task 19 会把 REST 列表端点切换到 CQRS 读模型。
+	 * @param customerId 客户 ID
+	 * @return 该客户的订单视图
+	 */
+	@Transactional(readOnly = true)
+	public List<OrderView> listByCustomer(CustomerId customerId) {
+		return orderRepository.findByCustomerId(customerId).stream().map(this::toView).toList();
 	}
 
 	private Order load(OrderId orderId) {
