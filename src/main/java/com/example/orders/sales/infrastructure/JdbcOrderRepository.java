@@ -19,15 +19,12 @@ import com.example.orders.sharedkernel.OrderId;
 import com.example.orders.sharedkernel.Quantity;
 import com.example.orders.sharedkernel.Sku;
 
-import org.springframework.context.annotation.Import;
 import org.springframework.stereotype.Repository;
 
 /**
  * 基于 Spring Data JDBC 的 {@link OrderRepository} 实现，手写领域对象与行记录之间的映射。
  */
 @Repository
-// 切片测试只导入本类，因此在此显式带上标识符映射配置。
-@Import(JdbcMappingConfiguration.class)
 public class JdbcOrderRepository implements OrderRepository {
 
 	private final OrderJdbcDao dao;

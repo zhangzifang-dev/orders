@@ -13,6 +13,7 @@ import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.OptimisticLockingFailureException;
 
+import com.example.orders.config.JdbcMappingConfiguration;
 import com.example.orders.sales.domain.LineId;
 import com.example.orders.sales.domain.Order;
 import com.example.orders.sales.domain.OrderRepository;
@@ -26,7 +27,7 @@ import com.example.orders.sharedkernel.Quantity;
 import com.example.orders.sharedkernel.Sku;
 
 @DataJdbcTest
-@Import(JdbcOrderRepository.class)
+@Import({ JdbcOrderRepository.class, JdbcMappingConfiguration.class })
 class JdbcOrderRepositoryTest {
 
 	private static final Instant OCCURRED_AT = Instant.parse("2026-01-01T00:00:00Z");
