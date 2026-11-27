@@ -69,6 +69,28 @@ public class Invoice extends AggregateRoot {
 	}
 
 	/**
+	 * 从持久化状态重建发票，不产生新事件。
+	 * @param invoiceId 发票 ID
+	 * @param orderId 订单 ID
+	 * @param customerId 客户 ID
+	 * @param amount 发票金额
+	 * @param status 已持久化的状态
+	 * @param issuedAt 开具时间
+	 * @param version 乐观锁版本
+	 * @return 重建后的发票
+	 */
+	public static Invoice rehydrate(InvoiceId invoiceId, OrderId orderId, CustomerId customerId, Money amount,
+			InvoiceStatus status, Instant issuedAt, long version) {
+		if (status == null) {
+			throw new DomainException("发票状态不能为空");
+		}
+		Invoice invoice = new Invoice(invoiceId, orderId, customerId, amount, issuedAt);
+		invoice.status = status;
+		invoice.assignVersion(version);
+		return invoice;
+	}
+
+	/**
 	 * 标记发票已支付：仅允许从 {@link InvoiceStatus#ISSUED} 迁移到 {@link InvoiceStatus#PAID}。
 	 * @param occurredAt 状态迁移时间
 	 */

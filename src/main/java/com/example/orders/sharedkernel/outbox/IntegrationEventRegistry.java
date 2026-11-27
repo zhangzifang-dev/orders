@@ -20,6 +20,8 @@ public class IntegrationEventRegistry {
 		register(StockReservedIntegrationEvent.EVENT_TYPE, StockReservedIntegrationEvent.class);
 		register(StockReleasedIntegrationEvent.EVENT_TYPE, StockReleasedIntegrationEvent.class);
 		register(StockReservationFailedIntegrationEvent.EVENT_TYPE, StockReservationFailedIntegrationEvent.class);
+		register(PaymentCapturedIntegrationEvent.EVENT_TYPE, PaymentCapturedIntegrationEvent.class);
+		register(PaymentFailedIntegrationEvent.EVENT_TYPE, PaymentFailedIntegrationEvent.class);
 	}
 
 	public void register(String eventType, Class<? extends IntegrationEvent> eventClass) {

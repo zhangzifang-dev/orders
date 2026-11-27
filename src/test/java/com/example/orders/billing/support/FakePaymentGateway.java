@@ -51,6 +51,14 @@ public class FakePaymentGateway implements PaymentGateway {
 		this.results.add(result);
 	}
 
+	/**
+	 * 清空预设结果与已记录的请求，便于在共享 Spring 测试上下文中按测试方法重置。
+	 */
+	public void reset() {
+		this.results.clear();
+		this.requests.clear();
+	}
+
 	@Override
 	public CaptureResult capture(CaptureRequest request) {
 		requests.add(request);

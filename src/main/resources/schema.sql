@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS inventory_reservation (
   order_id UUID NOT NULL, sku VARCHAR(60) NOT NULL, quantity INT NOT NULL,
   PRIMARY KEY (order_id, sku)
 );
+
+CREATE TABLE IF NOT EXISTS billing_invoice (
+  id UUID PRIMARY KEY, order_id UUID NOT NULL UNIQUE, customer_id UUID NOT NULL,
+  amount DECIMAL(19,2) NOT NULL, currency VARCHAR(3) NOT NULL,
+  status VARCHAR(20) NOT NULL, issued_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS billing_payment (
+  id UUID PRIMARY KEY, invoice_id UUID NOT NULL, amount DECIMAL(19,2) NOT NULL,
+  currency VARCHAR(3) NOT NULL, status VARCHAR(20) NOT NULL,
+  gateway_ref VARCHAR(120), failure_reason VARCHAR(500),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL, version BIGINT NOT NULL
+);
