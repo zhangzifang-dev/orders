@@ -2,11 +2,19 @@ package com.example.orders.sales.domain;
 
 /**
  * 订单状态。
- *
- * <p>Task 3 只引入 {@link #DRAFT}；其余状态与转换在后续任务补充。
  */
 public enum OrderStatus {
 
-	DRAFT
+	/** 草稿：可增删行。 */
+	DRAFT,
+
+	/** 已下单：锁定订单行与金额。 */
+	PLACED,
+
+	/** 已确认：履约完成，不可取消。 */
+	CONFIRMED,
+
+	/** 已取消：终态。 */
+	CANCELLED
 
 }
