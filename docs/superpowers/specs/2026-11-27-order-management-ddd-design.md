@@ -59,7 +59,7 @@ Spring Boot 4 的构建细节（与 3.x 不同，实现时注意）：
 | Billing 结算 | 支撑域 | `Invoice`、`Payment` | 防腐层、外部系统模型翻译 |
 | Fulfillment 履约 | 支撑域 | `FulfillmentProcess` | 流程管理器 / Saga、补偿 |
 | 外部支付网关 | 外部系统 | — | 被防腐层包住，模型不渗入 |
-| sharedkernel | — | `Money`、`Currency`、`Sku` | 共享内核及其代价 |
+| sharedkernel | — | `Money`、`Currency`、`Sku`、`OrderId`、`CustomerId` | 共享内核及其代价 |
 
 核心域选 Sales 的理由：订单的状态流转和金额规则是整个业务里最有判断价值的部分，其余上下文都是围绕它提供支撑。
 
@@ -109,6 +109,8 @@ Spring Boot 4 的构建细节（与 3.x 不同，实现时注意）：
 - `Money`：`BigDecimal amount`（scale 2，HALF_UP）+ `Currency currency`；不可变；跨币种相加抛异常
 - `Currency`：ISO 4217 代码的封装，演示只启用 `CNY`，但类型本身不写死
 - `Sku`：库存单位标识
+- `OrderId`、`CustomerId`：跨上下文使用的标识值对象（同一标识在四个上下文里含义一致，故放共享内核）
+- `Quantity`：1..999 的数量值对象
 - `AggregateRoot`、`DomainEvent`、`DomainException`：极薄的基类/接口，不含框架依赖
 
 `Money` 放共享内核是**有意为之的取舍**：它足够稳定，且 Sales 与 Billing 必须对「金额」有一致理解。代价（耦合、升级同步）写进 ADR-0003。
