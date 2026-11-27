@@ -1,0 +1,8 @@
+# demo profile：启动时自动执行成功路径与支付失败补偿路径并打印事件时间线。
+demo:
+  run-on-startup: true
+
+spring:
+  h2:
+    console:
+      enabled: true
