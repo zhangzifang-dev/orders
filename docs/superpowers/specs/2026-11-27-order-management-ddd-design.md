@@ -32,14 +32,21 @@
 | 项 | 决定 |
 |---|---|
 | 语言 / 运行时 | Java 21 |
-| 框架 | Spring Boot 3.5.16 |
-| 构建 | Maven Wrapper（Maven 3.9.16），单 Maven 模块 |
+| 框架 | Spring Boot 4.1.3 |
+| 构建 | Maven Wrapper（Maven 3.10.2），单 Maven 模块 |
 | 持久化 | H2 文件库 + Spring Data JDBC（不使用 JPA） |
-| API 文档 | springdoc-openapi 2.10.1 |
+| API 文档 | springdoc-openapi 3.2.1 |
 | 代码风格 | 不用 Lombok；标识符英文，注释与文档中文 |
 | 事件 | 进程内事件 + 事务性 Outbox；不引入消息中间件 |
 | 测试 | 领域层零 mock；应用层尽量零 mock；不引入 Mockito 依赖 |
 | 代码归属 | 所有代码（含测试）由实现者编写，使用者只读和运行 |
+
+Spring Boot 4 的构建细节（与 3.x 不同，实现时注意）：
+
+- Web starter 叫 `spring-boot-starter-webmvc`，H2 控制台是独立的 `spring-boot-h2console`
+- 测试 starter 按模块拆分：`spring-boot-starter-webmvc-test`、`spring-boot-starter-data-jdbc-test`
+- 两者都传递引入 `spring-boot-starter-test`，而后者含 `mockito-core` 与 `mockito-junit-jupiter`，需要在两处都排除
+- 项目骨架由 start.spring.io 生成（bootVersion=4.1.3, javaVersion=21, dependencies=web,data-jdbc,h2）
 
 ---
 
