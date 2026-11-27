@@ -7,3 +7,14 @@ CREATE TABLE IF NOT EXISTS outbox_event (
   occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
   published_at TIMESTAMP WITH TIME ZONE
 );
+
+CREATE TABLE IF NOT EXISTS sales_order (
+  id UUID PRIMARY KEY, customer_id UUID NOT NULL, status VARCHAR(20) NOT NULL,
+  currency VARCHAR(3) NOT NULL, discount_amount DECIMAL(19,2) NOT NULL,
+  placed_at TIMESTAMP WITH TIME ZONE, cancel_reason VARCHAR(500), version BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sales_order_line (
+  id UUID PRIMARY KEY, order_id UUID NOT NULL, sku VARCHAR(60) NOT NULL,
+  product_name VARCHAR(200) NOT NULL, unit_price_amount DECIMAL(19,2) NOT NULL,
+  quantity INT NOT NULL
+);

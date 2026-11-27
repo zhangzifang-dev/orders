@@ -59,6 +59,52 @@ public class Order extends AggregateRoot {
 		return new Order(orderId, customerId, currency);
 	}
 
+	/**
+	 * 从持久化状态重建订单，不产生领域事件。
+	 * @param orderId 订单 ID
+	 * @param customerId 客户 ID
+	 * @param currency 币种
+	 * @param lines 订单行
+	 * @param status 订单状态
+	 * @param discount 折扣金额
+	 * @param placedAt 下单时间，未下单时为 {@code null}
+	 * @param cancelReason 取消原因，未取消时为 {@code null}
+	 * @return 重建的订单
+	 */
+	public static Order rehydrate(OrderId orderId, CustomerId customerId, Currency currency, List<OrderLine> lines,
+			OrderStatus status, Money discount, Instant placedAt, String cancelReason) {
+		Order order = new Order(orderId, customerId, currency);
+		if (lines != null) {
+			for (OrderLine line : lines) {
+				if (line == null) {
+					throw new DomainException("订单行不能为空");
+				}
+				if (!line.unitPrice().currency().equals(currency)) {
+					throw new DomainException("订单行币种必须与订单币种一致: " + currency + " vs "
+							+ line.unitPrice().currency());
+				}
+				if (order.lines.stream().anyMatch(existing -> existing.lineId().equals(line.lineId()))) {
+					throw new DomainException("订单行 ID 已存在: " + line.lineId());
+				}
+				order.lines.add(line);
+			}
+		}
+		if (status == null) {
+			throw new DomainException("订单状态不能为空");
+		}
+		if (discount == null) {
+			throw new DomainException("折扣金额不能为空");
+		}
+		if (!discount.currency().equals(currency)) {
+			throw new DomainException("折扣币种必须与订单币种一致: " + currency + " vs " + discount.currency());
+		}
+		order.status = status;
+		order.discount = discount;
+		order.placedAt = placedAt;
+		order.cancelReason = cancelReason;
+		return order;
+	}
+
 	public void addLine(LineId lineId, Sku sku, String productName, Money unitPrice, Quantity quantity,
 			Instant occurredAt) {
 		requireDraft();
